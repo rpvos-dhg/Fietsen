@@ -182,7 +182,7 @@ function status(tekst, soort = 'werk') {
 /* ---------------- plaatsnaam zoeken ---------------- */
 
 /**
- * De PDOK Locatieserver matcht "3512 JE" op een woonplaats Sittard, maar
+ * De PDOK Locatieserver matcht "3512 JE" op de woonplaats Sittard, maar
  * "3512JE" wel correct op de postcode. Daarom de spatie eruit halen.
  */
 const normaliseerZoek = (q) => q.replace(/\b(\d{4})\s+([A-Za-z]{2})\b/, '$1$2');
