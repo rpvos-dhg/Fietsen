@@ -1,0 +1,4 @@
+Dit bestand zet Jekyll uit op GitHub Pages. De site is kant-en-klaar: er valt
+niets te genereren, en Jekyll zou bestanden met een underscore stilzwijgend
+overslaan. Zonder dit bestand is een ontbrekend bestand op de gepubliceerde site
+lastig te verklaren.
