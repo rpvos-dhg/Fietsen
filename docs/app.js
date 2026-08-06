@@ -689,18 +689,17 @@ async function genereer() {
       lat: state.startgebied.lat,
       lon: state.startgebied.lon,
     });
-    toonVoorstellen(j.routes);
     // Zonder de bezienswaardigheden kloppen de routes wel, maar is de volgorde
     // willekeurig in plaats van "mooiste eerst". Dat hoort de gebruiker te weten.
-    if (j.zonderHoogtepunten) {
-      status(
-        'Deze rondjes zijn nog niet op bezienswaardigheden gerangschikt: die gegevens ' +
-          'waren op tijd niet binnen bij Overpass. Ze worden nu op de achtergrond opgehaald — ' +
-          'probeer het over een paar minuten opnieuw voor de mooiste variant.'
-      );
-    } else {
-      status('');
-    }
+    // De melding gaat mee naar toonVoorstellen: die selecteert het eerste
+    // voorstel automatisch, en die selectie zette de statusregel anders meteen
+    // weer leeg — waarmee de waarschuwing onzichtbaar werd.
+    const melding = j.zonderHoogtepunten
+      ? 'Deze rondjes zijn nog niet op bezienswaardigheden gerangschikt: die gegevens ' +
+        'waren op tijd niet binnen bij Overpass. Ze worden nu op de achtergrond opgehaald — ' +
+        'probeer het over een paar minuten opnieuw voor de mooiste variant.'
+      : '';
+    toonVoorstellen(j.routes, melding);
   } catch (e) {
     status(e.message, 'fout');
   } finally {
@@ -751,7 +750,7 @@ function naarUitsnede(bounds) {
   else map.flyToBounds(bounds, { padding: [40, 40], duration: 0.6 });
 }
 
-function toonVoorstellen(routes) {
+function toonVoorstellen(routes, melding = '') {
   const bak = $('voorstellen');
   // Een <label> zonder besturingselement betekent niets voor een schermlezer;
   // dit is een kop boven een lijst keuzes.
@@ -782,7 +781,10 @@ function toonVoorstellen(routes) {
       state.gekozenId = route.id;
       toonRoute(route);
       tekenSpooklijnen(routes, route.id);
-      status(route.waarschuwing || '', 'fout');
+      // Een waarschuwing over déze route gaat voor; anders blijft de melding
+      // over het hele gebied staan in plaats van te verdwijnen bij de klik.
+      if (route.waarschuwing) status(route.waarschuwing, 'fout');
+      else status(melding);
     });
 
     // Zweven laat het rondje oplichten; pas na een korte rust glijdt de kaart
