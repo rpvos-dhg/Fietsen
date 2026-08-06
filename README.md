@@ -51,15 +51,25 @@ mirrors maar één keer hoeft.
 npm start --prefix cache-server
 ```
 
-Deployen kan met de meegeleverde `Dockerfile` (bouwen vanuit de projectwortel,
-want de server deelt `docs/shared`):
+Deployen kan met de meegeleverde `Dockerfile`. Bouwen gebeurt **vanuit de
+projectwortel**, want de server deelt `docs/shared` met de webapp:
 
 ```bash
 docker build -f cache-server/Dockerfile -t knooppuntroutes-cache .
 ```
 
-Voor Fly.io staat er een `fly.toml` klaar. **Koppel een volume**: zonder
-blijvende opslag is de cache bij elke herstart weg en heeft de server geen nut.
+Voor Fly.io staat `fly.toml` klaar in de projectwortel — bewust daar en niet in
+`cache-server/`, omdat fly de map van `fly.toml` als build-context gebruikt.
+
+```bash
+fly launch --copy-config --no-deploy
+fly volumes create cache --size 1 --region ams
+fly deploy
+```
+
+**Het volume is niet optioneel.** Zonder blijvende opslag is de cache bij elke
+herstart weg, en dan heeft de server geen enkel nut: het bewaren is zijn hele
+bestaansreden.
 
 Vul het adres daarna in bij *Instellingen en opslag* in de app. Omdat GitHub
 Pages op https draait, moet de cache-server dat ook — een `http://`-adres wordt

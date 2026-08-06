@@ -1,11 +1,16 @@
+# Configuratie voor de optionele cache-server.
+#
+# Dit bestand staat bewust in de projectwortel en niet in cache-server/: fly
+# gebruikt de map van fly.toml als build-context, en de Dockerfile kopieert
+# docs/shared/ omdat de server de query-opbouw met de webapp deelt. Vanuit
+# cache-server/ zou de build stuklopen op COPY docs/shared/.
+#
 # Vervang de app-naam door wat je bij `fly launch` kiest.
 app = "knooppuntroutes-cache"
 primary_region = "ams"
 
 [build]
-  dockerfile = "Dockerfile"
-  # De build-context is de projectwortel, want de server deelt docs/shared.
-  ignorefile = "../.dockerignore"
+  dockerfile = "cache-server/Dockerfile"
 
 [env]
   PORT = "8080"
@@ -20,7 +25,8 @@ primary_region = "ams"
   auto_start_machines = true
   min_machines_running = 1
 
-# Zonder volume is de cache bij elke herstart weg en heeft de server geen nut.
+# Zonder volume is de cache bij elke herstart weg en heeft de server geen nut:
+# het bewaren is zijn hele bestaansreden.
 [[mounts]]
   source = "cache"
   destination = "/data"
