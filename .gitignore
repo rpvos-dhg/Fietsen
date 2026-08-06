@@ -1,0 +1,14 @@
+node_modules/
+
+# Opgehaalde Overpass-gegevens: groot, herbouwbaar, en per machine anders.
+cache/
+cache-server/cache/
+
+# Losstaand gereedschap, geïnstalleerd met `npx impeccable install`.
+# Hoort niet mee de repo in; het is een ander project.
+.claude/skills/
+.claude/settings.local.json
+
+.impeccable/live/inject-journal.json
+.impeccable/hook.cache.json
+.DS_Store

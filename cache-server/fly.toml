@@ -1,0 +1,30 @@
+# Vervang de app-naam door wat je bij `fly launch` kiest.
+app = "knooppuntroutes-cache"
+primary_region = "ams"
+
+[build]
+  dockerfile = "Dockerfile"
+  # De build-context is de projectwortel, want de server deelt docs/shared.
+  ignorefile = "../.dockerignore"
+
+[env]
+  PORT = "8080"
+  CACHE_DIR = "/data"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  # Niet naar nul schalen: de cache staat op een volume, maar een koude start
+  # kost een halve minuut en dat is precies wat we wilden vermijden.
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+
+# Zonder volume is de cache bij elke herstart weg en heeft de server geen nut.
+[[mounts]]
+  source = "cache"
+  destination = "/data"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"

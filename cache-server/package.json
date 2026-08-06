@@ -1,0 +1,17 @@
+{
+  "name": "knooppuntroutes-cache",
+  "version": "1.0.0",
+  "description": "Optionele cache-server voor de knooppuntroutes-webapp",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.21.2"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

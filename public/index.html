@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Knooppuntroutes — fietsrondjes over echte fietspaden</title>
+  <link rel="stylesheet" href="/vendor/leaflet/leaflet.css">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <aside id="panel">
+    <header>
+      <h1>Knooppuntroutes</h1>
+      <p class="sub">Zeg hoeveel kilometer je wilt fietsen, krijg een rondje over
+        echte fietspaden langs wat de moeite waard is.</p>
+    </header>
+
+    <div class="tabs" role="tablist" aria-label="Manier van routeplannen">
+      <button id="tabGenereer" class="tab actief" role="tab"
+              aria-selected="true" aria-controls="paneelGenereer">Route voor me maken</button>
+      <button id="tabZelf" class="tab" role="tab"
+              aria-selected="false" aria-controls="paneelZelf" tabindex="-1">Zelf knooppunten</button>
+    </div>
+
+    <div id="paneelGenereer" role="tabpanel" aria-labelledby="tabGenereer">
+      <section class="block">
+        <label for="vanaf">1. Waar vertrek je vandaan?</label>
+        <div class="row">
+          <input id="vanaf" type="text" placeholder="Postcode of plaats, bijv. 3512 JE" autocomplete="off">
+          <button id="zoekGebieden" class="ghost">Zoek</button>
+        </div>
+        <label class="slider">
+          Maximaal <strong id="rijtijdLabel">60 min</strong> rijden
+          <input id="rijtijd" type="range" min="15" max="150" step="15" value="60">
+        </label>
+        <div id="gebiedenLijst" class="gebieden"></div>
+      </section>
+
+      <section class="block">
+        <label for="afstandWens">2. Hoeveel kilometer wil je fietsen?</label>
+        <div class="row">
+          <input id="afstandWens" type="number" min="10" max="120" step="5" value="43">
+          <span class="hint" style="margin:0">km</span>
+          <button id="genereer" class="primary">Maak rondjes</button>
+        </div>
+        <p id="gekozenGebied" class="hint">Kies hierboven eerst een gebied.</p>
+      </section>
+
+      <section id="voorstellen" class="block hidden"></section>
+    </div>
+
+    <div id="paneelZelf" class="hidden" role="tabpanel" aria-labelledby="tabZelf">
+    <section class="block">
+      <label for="gebied">1. Startgebied</label>
+      <div class="row">
+        <input id="gebied" type="text" placeholder="Plaatsnaam, bijv. Nieuwegein" autocomplete="off">
+        <button id="zoekGebied" class="ghost" title="Zoek plaats">Zoek</button>
+      </div>
+      <div id="gebiedResultaten" class="results hidden"></div>
+      <div class="row tight">
+        <button id="gebruikKaart" class="ghost small">Gebruik kaartmidden</button>
+        <span id="gebiedActief" class="hint">nog geen gebied gekozen</span>
+      </div>
+      <label class="slider">
+        Zoekstraal: <strong id="straalLabel">25 km</strong>
+        <input id="straal" type="range" min="5" max="60" step="5" value="25">
+      </label>
+    </section>
+
+    <section class="block">
+      <label for="reeks">2. Knooppunten</label>
+      <textarea id="reeks" rows="3" placeholder="83 - 84 - 85 - 22 - 60 - 59 - 33 - 34 - 35 - 42 - 41 - 83"></textarea>
+      <p class="hint">Scheiden met <code>-</code>, <code>&gt;</code>, komma of spatie. Klik op een knooppunt in de kaart om het achteraan toe te voegen.</p>
+      <div class="row tight">
+        <button id="plan" class="primary">Plan route</button>
+        <button id="wis" class="ghost small">Wis</button>
+      </div>
+    </section>
+    </div>
+
+    <section id="status" class="block status hidden" role="status" aria-live="polite"></section>
+
+    <section id="resultaat" class="block hidden" aria-label="Gekozen route">
+      <p class="samenvatting">
+        <strong id="afstand">—</strong> kilometer, <span id="aantalKnooppunten">—</span>.
+      </p>
+      <div class="acties">
+        <button id="volg" class="primary small">Volg op de kaart</button>
+        <button id="bewaar" class="ghost small">Bewaar op dit apparaat</button>
+      </div>
+      <a id="gpx" class="gpxlink" href="#" download>GPX downloaden om op te navigeren</a>
+      <div id="hoogtepunten" class="hoogtepunten"></div>
+      <details class="etappeblok">
+        <summary>Etappes per knooppunt</summary>
+        <ol id="etappes" class="etappes"></ol>
+      </details>
+    </section>
+
+    <section id="bewaardBlok" class="block hidden">
+      <h2 class="stapkop">Bewaard op dit apparaat</h2>
+      <ul id="bewaardLijst" class="bewaard"></ul>
+      <p class="hint">Blijft in deze browser staan, ook na een herstart. Er gaat
+        niets naar een server.</p>
+    </section>
+
+    <section class="block layers" role="group" aria-label="Kaartlagen">
+      <label><input type="checkbox" id="laagNetwerk" checked> PDOK fietsnetwerken</label>
+      <label><input type="checkbox" id="laagKnooppunten" checked> PDOK knooppunten</label>
+      <label><input type="checkbox" id="laagKlikbaar" checked> Klikbare knooppunten</label>
+    </section>
+
+    <footer>
+      <p class="hint">
+        Kaartlagen: <a href="https://www.pdok.nl/ogc-webservices/-/article/regionale-fietsnetwerken" target="_blank" rel="noopener">PDOK Regionale Fietsnetwerken</a> (WMS)
+        en PDOK BRT Achtergrondkaart. Routegeometrie uit het OpenStreetMap-knooppuntennetwerk,
+        omdat PDOK deze dataset alleen als kaartbeeld publiceert.
+      </p>
+    </footer>
+  </aside>
+
+  <main id="kaart"></main>
+
+  <div id="volgbalk" class="volgbalk hidden" role="region" aria-label="Route volgen">
+    <div class="volginfo">
+      <strong id="volgTitel">—</strong>
+      <span id="volgDetail"></span>
+    </div>
+    <div class="volgknoppen">
+      <button id="volgCentreer" class="ghost small hidden">Centreer</button>
+      <button id="volgPositie" class="ghost small" aria-pressed="false">Toon mijn positie</button>
+      <button id="volgStop" class="ghost small">Sluit</button>
+    </div>
+  </div>
+
+  <script src="/vendor/leaflet/leaflet.js"></script>
+  <script src="/app.js"></script>
+</body>
+</html>

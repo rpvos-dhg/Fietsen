@@ -1,0 +1,205 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-06T00:00:00.000Z",
+  "title": "Design System: Knooppuntroutes",
+  "extensions": {
+    "colorMeta": {
+      "bordjesgroen": {
+        "role": "primary",
+        "displayName": "Bordjesgroen",
+        "canonical": "#0f6b3d",
+        "darkValue": "#2f9c5f",
+        "tonalRamp": ["#04160c", "#062b17", "#0a4123", "#0f6b3d", "#2f9c5f", "#5cbd85", "#96d9b1", "#d5efe0"]
+      },
+      "wegwijzerrood": {
+        "role": "secondary",
+        "displayName": "Wegwijzerrood",
+        "canonical": "#cc3d10",
+        "darkValue": "#ff7043",
+        "tonalRamp": ["#2b0c02", "#571905", "#8f290a", "#cc3d10", "#ff7043", "#ff9873", "#ffbda5", "#ffe3d8"]
+      },
+      "papier": {
+        "role": "neutral",
+        "displayName": "Papier",
+        "canonical": "#faf9f6",
+        "darkValue": "#111613",
+        "tonalRamp": ["#111613", "#1a201c", "#262e29", "#333c36", "#5a6560", "#8b938e", "#d9d8d0", "#faf9f6"]
+      },
+      "inkt": {
+        "role": "neutral",
+        "displayName": "Inkt",
+        "canonical": "#14201a",
+        "darkValue": "#e9ede9",
+        "tonalRamp": ["#0a110d", "#14201a", "#26332c", "#3d4c44", "#5a6560", "#8b938e", "#c3ccc6", "#e9ede9"]
+      },
+      "waarschuwing": {
+        "role": "tertiary",
+        "displayName": "Omleidingsgeel",
+        "canonical": "#7a4f00",
+        "darkValue": "#e8bb6a"
+      },
+      "fout": {
+        "role": "tertiary",
+        "displayName": "Foutrood",
+        "canonical": "#8f1d1d",
+        "darkValue": "#ff9b9b"
+      }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Paginatitel, één keer per scherm." },
+      "headline": { "displayName": "Kilometergetal", "purpose": "De afstand van de gekozen route, in tabelcijfers." },
+      "title": { "displayName": "Voorsteltitel", "purpose": "De afstand op een voorstelkaart." },
+      "body": { "displayName": "Body", "purpose": "Lopende tekst; toelichtingen tot 42ch." },
+      "lead": { "displayName": "Lead", "purpose": "De trede tussen body en label: ondertitel onder de paginatitel, gebiedsnaam in de lijst, GPX-downloadlink." },
+      "label": { "displayName": "Label", "purpose": "Veldlabels en stapkoppen." },
+      "reeks": { "displayName": "Knooppuntreeks", "purpose": "De nummerreeks onder een voorstel, in tabelcijfers." }
+    },
+    "shadows": [
+      {
+        "name": "boven-de-kaart",
+        "value": "0 1px 4px rgb(0 0 0 / 0.35)",
+        "purpose": "Uitsluitend voor elementen die letterlijk boven het kaartbeeld zweven: de marker van een knooppunt op de gekozen route, en tooltips. Binnen het paneel wordt geen schaduw gebruikt."
+      }
+    ],
+    "motion": [
+      {
+        "name": "state-overgang",
+        "value": "120ms ease",
+        "purpose": "Randkleur en achtergrond van knoppen bij hover en focus. Raakt geen layout-eigenschappen."
+      },
+      {
+        "name": "route-intekening",
+        "value": "1100ms cubic-bezier(0.22, 1, 0.36, 1)",
+        "purpose": "Het enige geënsceneerde moment: de routelijn tekent zich eenmalig in via stroke-dashoffset. Staat achter prefers-reduced-motion en verwijdert daarna zijn eigen dasharray, anders valt er bij inzoomen een gat in de lijn."
+      }
+    ],
+    "breakpoints": [
+      { "name": "gestapeld", "value": "820px" },
+      { "name": "aanraak", "value": "pointer: coarse" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primaire knop",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Sluit een stap af: Maak rondjes, Plan route. Vult met bordjesgroen.",
+      "html": "<button class=\"ds-btn-primary\">Maak rondjes</button>",
+      "css": ".ds-btn-primary { background: var(--actie, #0f6b3d); border: 1px solid var(--actie, #0f6b3d); color: var(--op-actie, #fff); font: 620 15px/1.5 ui-sans-serif, system-ui, sans-serif; padding: 9px 15px; border-radius: 6px; cursor: pointer; transition: border-color 120ms ease, background-color 120ms ease; } .ds-btn-primary:hover { background: var(--actie-hover, #0a4f2d); border-color: var(--actie-hover, #0a4f2d); } .ds-btn-primary:focus-visible { outline: 2px solid var(--actie-tekst, #0a4f2d); outline-offset: 2px; } .ds-btn-primary:active { transform: translateY(0.5px); }"
+    },
+    {
+      "name": "Ghost-knop",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Nevenhandelingen: Zoek, Wis, Gebruik kaartmidden.",
+      "html": "<button class=\"ds-btn-ghost\">Zoek</button>",
+      "css": ".ds-btn-ghost { background: var(--vlak, #fff); border: 1px solid var(--lijn, #d9d8d0); color: var(--inkt, #14201a); font: 400 15px/1.5 ui-sans-serif, system-ui, sans-serif; padding: 9px 15px; border-radius: 6px; cursor: pointer; transition: border-color 120ms ease, background-color 120ms ease; } .ds-btn-ghost:hover { border-color: var(--actie, #0f6b3d); } .ds-btn-ghost:focus-visible { outline: 2px solid var(--actie-tekst, #0a4f2d); outline-offset: 2px; }"
+    },
+    {
+      "name": "Tekstveld",
+      "kind": "input",
+      "refersTo": "input-text",
+      "description": "Postcode, plaatsnaam of knooppuntreeks.",
+      "html": "<input class=\"ds-input\" type=\"text\" placeholder=\"Postcode of plaats, bijv. 3512 JE\">",
+      "css": ".ds-input { width: 100%; background: var(--vlak, #fff); border: 1px solid var(--lijn, #d9d8d0); color: var(--inkt, #14201a); font: 400 15px/1.5 ui-sans-serif, system-ui, sans-serif; padding: 9px 11px; border-radius: 6px; } .ds-input::placeholder { color: var(--inkt-flauw, #8b938e); } .ds-input:focus { border-color: var(--actie, #0f6b3d); } .ds-input:focus-visible { outline: 2px solid var(--actie-tekst, #0a4f2d); outline-offset: 0; }"
+    },
+    {
+      "name": "Tabblad",
+      "kind": "nav",
+      "refersTo": "button-ghost",
+      "description": "Wisselt tussen route laten maken en zelf knooppunten invoeren. Alleen het actieve tabblad zit in de tabvolgorde.",
+      "html": "<div class=\"ds-tabs\" role=\"tablist\"><button class=\"ds-tab ds-tab-actief\" role=\"tab\" aria-selected=\"true\">Route voor me maken</button><button class=\"ds-tab\" role=\"tab\" aria-selected=\"false\" tabindex=\"-1\">Zelf knooppunten</button></div>",
+      "css": ".ds-tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--lijn, #d9d8d0); } .ds-tab { flex: 1; padding: 9px 8px; font: 400 13.5px/1.5 ui-sans-serif, system-ui, sans-serif; background: transparent; border: 0; border-bottom: 2px solid transparent; color: var(--inkt-zacht, #5a6560); margin-bottom: -1px; cursor: pointer; } .ds-tab:hover { color: var(--inkt, #14201a); } .ds-tab-actief { color: var(--actie-tekst, #0a4f2d); border-bottom-color: var(--actie, #0f6b3d); font-weight: 620; } .ds-tab:focus-visible { outline: 2px solid var(--actie-tekst, #0a4f2d); outline-offset: 2px; }"
+    },
+    {
+      "name": "Hoogtepunt-chip",
+      "kind": "chip",
+      "refersTo": "chip-hoogtepunt",
+      "description": "Een bezienswaardigheid langs de route. Alleen tonen, niet klikbaar.",
+      "html": "<span class=\"ds-chip\">Korenmolen De Eendracht (molen)</span>",
+      "css": ".ds-chip { display: inline-block; background: var(--actie-vlak, #eaf2ec); color: var(--actie-tekst, #0a4f2d); font: 400 12px/1.5 ui-sans-serif, system-ui, sans-serif; border-radius: 4px; padding: 3px 7px; }"
+    },
+    {
+      "name": "Voorstelkaart",
+      "kind": "card",
+      "refersTo": "voorstel-kaart",
+      "description": "Eén voorgesteld rondje. Geselecteerd krijgt hij de wegwijzerroodrand plus een getekend vinkje.",
+      "html": "<button class=\"ds-voorstel ds-voorstel-actief\"><span class=\"ds-voorstel-kop ds-vink\">43,8 km</span><span class=\"ds-voorstel-mee\">35 bezienswaardigheden — molen, bos, natuurgebied</span><span class=\"ds-voorstel-reeks\">53 - 55 - 94 - 33 - 89 - 88 - 3 - 10 - 4 - 84</span></button>",
+      "css": ".ds-voorstel { width: 100%; text-align: left; background: var(--vlak, #fff); border: 1px solid var(--lijn, #d9d8d0); border-radius: 6px; padding: 12px 14px; line-height: 1.45; cursor: pointer; font-family: ui-sans-serif, system-ui, sans-serif; } .ds-voorstel:hover { border-color: var(--route, #cc3d10); } .ds-voorstel-actief { border-color: var(--route, #cc3d10); background: var(--route-vlak, #fcefe9); } .ds-voorstel-kop { display: flex; align-items: center; gap: 7px; font-weight: 700; font-size: 17px; letter-spacing: -0.015em; } .ds-voorstel-actief .ds-voorstel-kop { color: var(--route, #cc3d10); } .ds-voorstel-mee { display: block; font-size: 13px; margin-top: 3px; color: var(--inkt-zacht, #5a6560); } .ds-voorstel-reeks { display: block; font-size: 11.5px; color: var(--inkt-zacht, #5a6560); font-variant-numeric: tabular-nums; margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--lijn-zacht, #e8e7e0); word-break: break-word; } .ds-vink::before { content: \"\"; flex: 0 0 auto; width: 14px; height: 14px; background: currentColor; -webkit-mask: url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23000' stroke-width='2.25' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 8.5 6.5 12 13 4.5'/%3E%3C/svg%3E\") center / contain no-repeat; mask: url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23000' stroke-width='2.25' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 8.5 6.5 12 13 4.5'/%3E%3C/svg%3E\") center / contain no-repeat; }"
+    },
+    {
+      "name": "Spooklijn",
+      "kind": "custom",
+      "refersTo": "voorstel-kaart",
+      "description": "Een niet-gekozen voorstel op de kaart. Onderscheidt zich op drie manieren tegelijk waarvan er maar één kleur is: neutraal, dun en gestreept. Zweven maakt hem massief.",
+      "html": "<svg width=\"260\" height=\"60\" viewBox=\"0 0 260 60\"><path class=\"ds-spook\" d=\"M8 44 C 60 8, 90 52, 130 30 S 210 10, 252 26\" /><path class=\"ds-spook ds-spook-aan\" d=\"M8 20 C 70 44, 110 12, 150 34 S 214 46, 252 40\" /></svg>",
+      "css": ".ds-spook { fill: none; stroke: var(--inkt-zacht, #5a6560); stroke-width: 2; stroke-opacity: 0.5; stroke-dasharray: 2 6; transition: stroke-width 320ms cubic-bezier(0.22, 1, 0.36, 1), stroke-opacity 320ms ease, stroke-dasharray 320ms ease; } .ds-spook-aan { stroke-width: 5; stroke-opacity: 0.95; stroke-dasharray: 8 0; }"
+    },
+    {
+      "name": "Knooppuntmarker",
+      "kind": "custom",
+      "refersTo": "knooppunt-marker",
+      "description": "Signature component: het bordje zelf. Rond, groen omrand, nummer in tabelcijfers. Op de gekozen route wordt hij groter, rood en krijgt hij de enige schaduw in het systeem.",
+      "html": "<span class=\"ds-kp\">53</span><span class=\"ds-kp ds-kp-actief\">84</span>",
+      "css": ".ds-kp { display: inline-grid; place-items: center; width: 24px; height: 24px; background: var(--vlak, #fff); border: 2px solid var(--actie, #0f6b3d); border-radius: 50%; color: var(--actie-tekst, #0a4f2d); font: 700 11px/1 ui-sans-serif, system-ui, sans-serif; font-variant-numeric: tabular-nums; cursor: pointer; margin-right: 8px; } .ds-kp-actief { width: 28px; height: 28px; background: var(--route, #cc3d10); border-color: var(--route-omranding, #fff); color: var(--op-route, #fff); box-shadow: 0 1px 4px rgb(0 0 0 / 0.35); }"
+    },
+    {
+      "name": "Statusmelding",
+      "kind": "custom",
+      "refersTo": "voorstel-kaart",
+      "description": "Voortgang tijdens het ophalen bij Overpass, en de kernwaarschuwing dat knooppuntnummers uit een ander netwerk komen. Altijd een live-regio.",
+      "html": "<div class=\"ds-status\" role=\"status\" aria-live=\"polite\">2 etappes zijn ongewoon lang (59→33, 41→83). Waarschijnlijk hoort een deel van deze nummers bij een ander knooppuntennetwerk: controleer het startgebied.</div>",
+      "css": ".ds-status { font: 400 13.5px/1.5 ui-sans-serif, system-ui, sans-serif; color: var(--fout, #8f1d1d); background: var(--fout-vlak, #fbebeb); border: 1px solid var(--fout-lijn, #f0d3d3); border-radius: 6px; padding: 11px 13px; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "Het Knooppuntbordje",
+    "overview": "De interface gedraagt zich als de bewegwijzering zelf. Een knooppuntbordje langs een dijk is groen op wit, draagt cijfers in tabelvorm, heeft geen versiering en is na tien jaar regen nog leesbaar. Het legt niets uit en laat niets weg. Elke ontwerpbeslissing wordt aan datzelfde toetspunt gehouden: zou dit werken op een paal langs de weg?\n\nDaaruit volgt de dichtheid en de terughoudendheid. Vlakken zijn plat, randen zijn één pixel, en er is geen enkel element dat aandacht vraagt zonder een functie te hebben. De cijferreeks van een route staat in tabelcijfers omdat je hem naast de bordjes onderweg moet kunnen leggen. Kleur draagt betekenis, nooit sfeer: groen is het netwerk en alles wat je kunt doen, rood-oranje is de ene route die je hebt gekozen.\n\nHet gebruiksmoment stuurt de rest. Er wordt gepland vlak voor vertrek, vaak op een telefoon, soms in het laatste daglicht naast een auto. Daarom haalt alles bedienbaars op een aanraakscherm de volle 44 pixels, en daarom is de donkere modus apart samengesteld in plaats van omgekeerd.",
+    "keyCharacteristics": [
+      "Groen voert het netwerk en de handelingen; rood-oranje uitsluitend de gekozen route",
+      "Plat: tonale vlakken en 1px-randen, geen schaduw op panelen",
+      "Tabelcijfers overal waar knooppuntnummers, afstanden of tijden staan",
+      "Nederlandse schrijfwijze, inclusief komma als decimaalteken",
+      "Twee samengestelde thema's, elk met een eigen achtergrondkaart"
+    ],
+    "rules": [
+      {
+        "name": "De Enige Pijl-regel",
+        "body": "Wegwijzerrood komt uitsluitend voor op de gekozen route en wat daar direct bij hoort. Zodra het ergens anders opduikt — een badge, een knop, een grafiek — verliest de route zijn voorrang op een kaart die al vol lijnen staat. Voor waarschuwingen bestaat een aparte kleur; die mag hier niet voor lenen.",
+        "section": "colors"
+      },
+      {
+        "name": "De Twee Thema's-regel",
+        "body": "Licht en donker worden apart samengesteld, nooit mechanisch omgekeerd. De achtergrondkaart wisselt mee: PDOK standaard in het licht, PDOK grijs in het donker, omdat een felwitte kaart op een telefoon in het laatste daglicht staat te glanzen. Tokennamen beschrijven daarom een rol, niet een kleur, want in het donker wordt die tint juist lichter.",
+        "section": "colors"
+      },
+      {
+        "name": "De Tabelcijfer-regel",
+        "body": "Elk getal dat met de werkelijkheid overeenkomt — knooppuntnummers, kilometers, rijtijden — staat in font-variant-numeric: tabular-nums. Ze worden naast elkaar gelezen en met de bordjes vergeleken, dus ze moeten uitlijnen.",
+        "section": "typography"
+      },
+      {
+        "name": "De Plat-tenzij-je-zweeft-regel",
+        "body": "Schaduw is voorbehouden aan elementen die boven de kaart liggen. Alles binnen het paneel blijft plat; hiërarchie komt daar uit vlakverschil, randen en typografie.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do houd wegwijzerrood exclusief voor de gekozen route en zijn knooppunten.",
+      "Do zet elk getal dat met de werkelijkheid overeenkomt in tabelcijfers.",
+      "Do benoem tokens naar hun rol (--actie-tekst), niet naar hun kleur.",
+      "Do stel licht en donker apart samen, inclusief de bijpassende PDOK-kaartstijl.",
+      "Do geef elke gekozen staat naast kleur ook een vorm: het vinkje is er omdat kleur alleen geen code is.",
+      "Do haal 44px op pointer: coarse; dit wordt buiten bediend.",
+      "Do schrijf getallen Nederlands, met een komma als decimaalteken."
+    ],
+    "donts": [
+      "Don't gebruik schaduw binnen het paneel; alleen wat boven de kaart zweeft krijgt diepte.",
+      "Don't voeg een tweede lettertype toe; hiërarchie komt uit grootte en gewicht.",
+      "Don't keer het lichte thema mechanisch om voor de donkere modus.",
+      "Don't maak er een toeristische reisapp van: geen sfeerfoto's, hero-beelden of sterbeoordelingen. Dit product heeft geen beeldmateriaal en mag dat ook niet suggereren; de kaart is het beeld.",
+      "Don't zet een kicker of bovenkopje boven een kop.",
+      "Don't vervang het vinkje door een unicode-teken of emoji."
+    ]
+  }
+}

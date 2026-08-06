@@ -1,0 +1,11 @@
+node_modules
+cache
+cache-server/cache
+cache-server/node_modules
+docs/vendor
+.git
+.claude
+.impeccable
+public
+server
+scripts
