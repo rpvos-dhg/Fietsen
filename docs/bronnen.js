@@ -182,9 +182,12 @@ async function haalCel(soort, cell, prioriteit) {
       if (server) {
         try {
           const res = await fetch(`${server}/cel/${soort}/${cell.y}/${cell.x}`, {
-            signal: AbortSignal.timeout(120_000),
+            signal: AbortSignal.timeout(35_000),
           });
-          if (res.ok) elementen = (await res.json()).elementen;
+          // Alleen 200 betekent "hier is de cel". Bij 202 heeft de server hem
+          // nog niet en is hij hem aan het ophalen; dan zijn wij sneller door
+          // het zelf te doen, en heeft de server hem de volgende keer wel.
+          if (res.status === 200) elementen = (await res.json()).elementen;
         } catch {
           /* server plat of traag: gewoon zelf ophalen */
         }

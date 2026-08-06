@@ -139,6 +139,17 @@ app.use(cors()); // de webapp staat op een ander domein (GitHub Pages)
 
 app.get('/gezond', (_req, res) => res.json({ ok: true }));
 
+/**
+ * Zolang wacht een verzoek op een cel die er nog niet is. Daarna krijgt de
+ * client 202 en haalt hij hem zelf op, terwijl wij doorgaan met ophalen.
+ *
+ * Zonder deze grens blokkeert elk verzoek tot Overpass antwoordt. Met twee
+ * gelijktijdige slots en een rij van tien of meer cellen wordt dat minuten, en
+ * dan loopt de client in zijn eigen time-out — die had al die tijd zelf al klaar
+ * kunnen zijn. Snelle cellen worden nog steeds gewoon geserveerd.
+ */
+const WACHT_MAX_MS = 25_000;
+
 app.get('/cel/:soort/:y/:x', async (req, res) => {
   const { soort } = req.params;
   const y = Number(req.params.y);
@@ -147,7 +158,20 @@ app.get('/cel/:soort/:y/:x', async (req, res) => {
     return res.status(400).json({ error: 'Ongeldige cel.' });
   }
   try {
-    const elementen = await cel(soort, y, x);
+    const taak = cel(soort, y, x);
+    taak.catch(() => {}); // mag op de achtergrond falen zonder ophef
+    const elementen = await Promise.race([
+      taak,
+      new Promise((_, weiger) => setTimeout(() => weiger(new Error('nog-bezig')), WACHT_MAX_MS)),
+    ]).catch((e) => {
+      if (e.message === 'nog-bezig') return null;
+      throw e;
+    });
+
+    if (elementen === null) {
+      res.set('Cache-Control', 'no-store');
+      return res.status(202).json({ bezig: true });
+    }
     // Niet in de browsercache: de client bewaart cellen zelf al dertig dagen in
     // IndexedDB. Een tweede cachelaag voegt niets toe en zorgt er alleen voor
     // dat een gewijzigd antwoord dagenlang niet doorkomt.
