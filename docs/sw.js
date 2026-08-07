@@ -10,7 +10,7 @@
  * kaart zichtbaar als het bereik wegvalt. Ze verlopen niet met een nieuwe versie
  * van de app, want de tegels zelf veranderen daar niet van.
  */
-const VERSIE = 'v1';
+const VERSIE = 'v2';
 const APP_CACHE = `knooppuntroutes-${VERSIE}`;
 const TEGEL_CACHE = 'knooppuntroutes-tegels';
 const MAX_TEGELS = 3000;

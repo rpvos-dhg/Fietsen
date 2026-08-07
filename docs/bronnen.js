@@ -17,6 +17,15 @@ const DB_NAAM = 'knooppuntroutes';
 const WINKEL = 'cellen';
 const HOUDBAAR_MS = 1000 * 60 * 60 * 24 * 30; // 30 dagen
 
+/**
+ * Versie van wat er in IndexedDB staat. Ophogen zodra de vorm van een cel
+ * verandert: records van een oudere versie worden dan genegeerd en opnieuw
+ * opgehaald, in plaats van als geldig te worden ingelezen.
+ *
+ * 1 = ruwe Overpass-elementen, 2 = verdicht formaat.
+ */
+const FORMAAT = 2;
+
 let dbBelofte = null;
 function db() {
   if (dbBelofte) return dbBelofte;
@@ -180,6 +189,16 @@ async function isGebakken(naam) {
   return (await gebakkenIndex).has(naam);
 }
 
+/**
+ * Klopt de vorm van een cel? Een cel met een ander formaat leverde eerder pas
+ * verderop een onbegrijpelijke fout op ("undefined is not an object"); zo valt
+ * hij op waar hij vandaan komt.
+ */
+function heeftJuisteVorm(soort, data) {
+  if (!data) return false;
+  return soort === 'net' ? Array.isArray(data.w) && Array.isArray(data.n) : Array.isArray(data);
+}
+
 /** Zet ruwe Overpass-elementen om in hetzelfde compacte formaat als de gebakken cellen. */
 function verdicht(soort, elementen) {
   const rond = (v) => +v.toFixed(6);
@@ -212,7 +231,13 @@ async function haalCel(soort, cell, prioriteit) {
   const naam = `${soort}_${cell.y}_${cell.x}`;
   const sleutel = `${soort}/${cell.y}/${cell.x}`;
   const bewaard = await uitDb(sleutel);
-  if (bewaard && Date.now() - bewaard.tijd < HOUDBAAR_MS) return bewaard.data;
+  if (
+    bewaard?.formaat === FORMAAT &&
+    Date.now() - bewaard.tijd < HOUDBAAR_MS &&
+    heeftJuisteVorm(soort, bewaard.data)
+  ) {
+    return bewaard.data;
+  }
 
   const bezig = lopend.get(sleutel);
   if (bezig) return bezig;
@@ -226,7 +251,8 @@ async function haalCel(soort, cell, prioriteit) {
         const res = await fetch(new URL(`cellen/${naam}.json`, import.meta.url));
         if (res.ok) {
           const data = await res.json();
-          await naarDb(sleutel, { tijd: Date.now(), data });
+          if (!heeftJuisteVorm(soort, data)) throw new Error(`Cel ${naam} heeft een onverwacht formaat.`);
+          await naarDb(sleutel, { tijd: Date.now(), formaat: FORMAAT, data });
           return data;
         }
       }
@@ -257,7 +283,7 @@ async function haalCel(soort, cell, prioriteit) {
         data = verdicht(soort, await metSlot(() => viaOverpass(query), prioriteit));
       }
 
-      await naarDb(sleutel, { tijd: Date.now(), data });
+      await naarDb(sleutel, { tijd: Date.now(), formaat: FORMAAT, data });
       return data;
     } finally {
       tel('klaar');
