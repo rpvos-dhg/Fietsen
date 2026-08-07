@@ -165,8 +165,11 @@ textarea { resize: vertical; font-variant-numeric: tabular-nums; line-height: 1.
 input:focus, textarea:focus { border-color: var(--actie); }
 input:focus-visible, textarea:focus-visible { outline-offset: 0; }
 
-.row { display: flex; gap: 8px; align-items: center; }
-.row.tight { margin-top: 10px; flex-wrap: wrap; }
+/* Wrappen, niet overlopen: bij grote tekst of veel zoom past een invoerveld
+   met knop ernaast niet meer naast elkaar. */
+.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.row.tight { margin-top: 10px; }
+.row > input[type="text"], .row > input[type="url"] { flex: 1 1 8em; min-width: 0; }
 
 /* --- knoppen --- */
 
