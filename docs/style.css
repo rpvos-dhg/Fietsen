@@ -95,11 +95,18 @@ body {
   overflow: hidden;
 }
 
+/*
+ * De viewport-meta staat op viewport-fit=cover, zodat de kaart in de volgmodus
+ * tot in de hoeken loopt. Daardoor loopt de pagina ook onder de Dynamic Island
+ * en de afgeronde hoeken door, en moet het paneel de veilige zones zelf
+ * respecteren — staand voor de Island bovenaan, liggend voor de zijkant.
+ */
 #panel {
   background: var(--canvas);
   border-right: 1px solid var(--lijn);
   overflow-y: auto;
-  padding: 24px 22px 40px;
+  padding: max(24px, env(safe-area-inset-top)) max(22px, env(safe-area-inset-right))
+    max(40px, env(safe-area-inset-bottom)) max(22px, env(safe-area-inset-left));
 }
 
 #kaart { height: 100%; background: var(--lijn-zacht); }
@@ -302,7 +309,20 @@ button.small { padding: 6px 11px; font-size: 13px; }
   gap: 10px;
   align-items: baseline;
 }
-.gebied .naam { display: flex; align-items: center; gap: 6px; }
+/*
+ * min-width: 0 is hier nodig, niet cosmetisch. Een flex-item krimpt standaard
+ * niet onder zijn inhoud, dus bij grote tekst of veel zoom duwde een lange
+ * gebiedsnaam de rijtijd buiten beeld en kreeg de lijst een eigen horizontale
+ * schuifbalk.
+ */
+.gebied .kop { flex-wrap: wrap; }
+.gebied .naam {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
 .gebied .rij {
   color: var(--inkt-zacht);
   font-weight: 500;
@@ -442,10 +462,15 @@ footer .hint { font-size: 12px; max-width: none; }
   button,
   input[type="text"],
   input[type="number"],
+  input[type="url"],
   .results button,
   .tab { min-height: 44px; }
   .gpxlink { display: block; padding: 12px 0; }
-  .etappeblok summary { padding: 12px 0; }
+  /* Elke summary, niet alleen die van de etappes: het opendichtelement van de
+     instellingen was daardoor maar 23 px hoog. */
+  summary { padding: 12px 0; }
+  /* Leaflets eigen zoomknoppen zijn 30 px; met handschoenen aan is dat te klein. */
+  .leaflet-bar a { width: 44px; height: 44px; line-height: 44px; }
   .layers label {
     display: flex;
     align-items: center;
@@ -505,10 +530,17 @@ body.volgmodus #kaart { height: 100vh; }
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+  padding: 12px max(16px, env(safe-area-inset-right)) calc(12px + env(safe-area-inset-bottom))
+    max(16px, env(safe-area-inset-left));
   background: var(--canvas);
   border-top: 1px solid var(--lijn);
 }
+
+/* In de volgmodus vult de kaart het scherm; Leaflets knoppen zouden anders
+   onder de Dynamic Island of tegen de afgeronde hoek vallen. */
+body.volgmodus .leaflet-top { padding-top: env(safe-area-inset-top); }
+body.volgmodus .leaflet-left { padding-left: env(safe-area-inset-left); }
+body.volgmodus .leaflet-right { padding-right: env(safe-area-inset-right); }
 .volgbalk.naast-route { border-top-color: var(--waarschuwing); }
 .volginfo { min-width: 0; }
 .volginfo strong {
