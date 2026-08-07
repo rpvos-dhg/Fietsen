@@ -472,7 +472,10 @@ footer .hint { font-size: 12px; max-width: none; }
   /* Elke summary, niet alleen die van de etappes: het opendichtelement van de
      instellingen was daardoor maar 23 px hoog. */
   summary { padding: 12px 0; }
-  /* Leaflets eigen zoomknoppen zijn 30 px; met handschoenen aan is dat te klein. */
+  /* Leaflets eigen zoomknoppen zijn 30 px; met handschoenen aan is dat te klein.
+     De selector moet .leaflet-touch bevatten, want Leaflet zet die klasse zelf
+     op aanraakschermen en wint anders op specificiteit. */
+  .leaflet-touch .leaflet-bar a,
   .leaflet-bar a { width: 44px; height: 44px; line-height: 44px; }
   .layers label {
     display: flex;
