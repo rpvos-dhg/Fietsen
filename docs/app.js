@@ -67,6 +67,9 @@ const state = {
   signaalTimer: null,  // bewaakt of er nog fixes binnenkomen
   positieLaag: null,
   centreert: true,
+  vorigeFix: null,     // voor het afleiden van de koers uit twee posities
+  kaartHoek: 0,        // graden waarover de kaart gedraaid staat, doorlopend
+  kaartModus: 'noord', // 'noord' | 'koers' | 'vrij'
   wakeLock: null,
   knooppuntLaag: null, // laag met klikbare knooppunten
   routeLaag: null,
@@ -468,6 +471,8 @@ function bewaarSessie() {
     volgmodus: document.body.classList.contains('volgmodus'),
     positie: state.volgId != null,
     centreert: state.centreert,
+    kaartModus: state.kaartModus,
+    kaartHoek: state.kaartHoek,
     midden: [midden.lat, midden.lng],
     zoom: map.getZoom(),
     route: alsPlatteRoute(state.huidigeRoute),
@@ -508,6 +513,13 @@ function herstelSessie() {
       // De uitsnede van startVolgen laat de hele route zien; had je de kaart bij
       // je eigen positie staan, dan is dát waar je verder wilt.
       if (s.midden) map.setView(s.midden, s.zoom || map.getZoom(), { animate: false });
+      if (DRAAISTANDEN[s.kaartModus]) {
+        state.kaartModus = s.kaartModus;
+        werkDraaiknopBij();
+        // Zonder animatie: je was al gedraaid, dus dit is geen beweging maar de
+        // stand waarin je de app verliet.
+        if (s.kaartModus !== 'noord' && s.kaartHoek) zetKaartHoek(s.kaartHoek, { direct: true });
+      }
       if (s.positie) {
         startPositie();
         // Had je de kaart zelf weggeschoven, dan blijft dat zo, inclusief de
@@ -629,7 +641,7 @@ function toonRoute(route) {
   // Bij de gestapelde indeling staat de kaart onder het paneel: zonder dit
   // verschijnt de route buiten beeld en lijkt er niets te gebeuren.
   if (window.matchMedia('(max-width: 820px)').matches) {
-    $('kaart').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    $('kaartvak').scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
   $('afstand').textContent = (route.meters / 1000).toFixed(1).replace('.', ',');
@@ -1049,6 +1061,9 @@ function stopVolgen() {
   $('volgbalk').classList.remove('naast-route', 'geen-signaal');
   stopPositie();
   laatSchermLos();
+  // Terug in het planscherm hoort de kaart weer op het noorden te staan; een
+  // scheve kaart naast een paneel met tekst leest niet.
+  kiesDraaistand('noord');
   map.invalidateSize();
   bewaarSessie();
 }
@@ -1069,6 +1084,7 @@ function stopPositie() {
   state.signaalTimer = null;
   state.laatsteFix = 0;
   state.positieLaag?.clearLayers();
+  state.vorigeFix = null;
   $('volgPositie').setAttribute('aria-pressed', 'false');
   $('volgPositie').textContent = 'Toon mijn positie';
   $('volgCentreer').classList.add('hidden');
@@ -1169,6 +1185,15 @@ function werkPositieBij(pos) {
 
   if (state.centreert) map.setView([lat, lon], Math.max(map.getZoom(), 15), { animate: false });
 
+  // Meedraaien met de rijrichting. De demping haalt de laatste trilling uit de
+  // gps-koers; onder de twee graden gebeurt er niets, anders staat de kaart de
+  // hele rit te bibberen.
+  const koers = bepaalKoers(pos, lat, lon);
+  if (state.kaartModus === 'koers' && koers != null) {
+    const verschil = ((-koers - state.kaartHoek + 540) % 360) - 180;
+    if (Math.abs(verschil) > 2) draaiNaar(-koers, { demping: 0.6 });
+  }
+
   if (!volg) return;
   const { index, afstand } = dichtstbijzijndePunt(volg, lat, lon, state.laatsteIndex);
   state.laatsteIndex = index;
@@ -1229,6 +1254,222 @@ document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') hervatNaTerugkeer();
 });
 addEventListener('pageshow', hervatNaTerugkeer);
+
+/* --- de kaart draaien --- */
+
+/*
+ * Leaflet kan geen gedraaide kaart. Het draaien gebeurt daarom in CSS, op de
+ * kaart als geheel, en twee dingen moeten daarna weer rechtgezet worden:
+ *
+ * 1. Slepen. Leaflet verschuift de kaartlaag met het verschil tussen twee
+ *    vingerposities op het scherm. Staat de kaart scheef, dan hoort dat
+ *    verschil eerst teruggedraaid te worden, anders loopt de kaart schuin weg
+ *    onder je vinger vandaan.
+ * 2. Waar je tikt. Leaflet rekent een schermpunt om naar een punt op de kaart
+ *    met de omhullende rechthoek van het element; van een gedraaid element
+ *    klopt die niet meer. Daarmee zou knijpzoomen om het verkeerde punt draaien.
+ *
+ * Beide worden hieronder afgevangen, en alleen zolang de kaart daadwerkelijk
+ * scheef staat; recht vooruit blijft het gewone Leaflet.
+ */
+const DRAAI_MS = 350;
+const staatScheef = () => Math.abs(state.kaartHoek % 360) > 0.01;
+
+function roteerPunt(punt, graden) {
+  const r = (graden * Math.PI) / 180;
+  const c = Math.cos(r);
+  const s = Math.sin(r);
+  return L.point(punt.x * c - punt.y * s, punt.x * s + punt.y * c);
+}
+
+const origNaarContainerpunt = map.mouseEventToContainerPoint;
+map.mouseEventToContainerPoint = function (e) {
+  if (!staatScheef()) return origNaarContainerpunt.call(this, e);
+  // De draai gaat om het midden van het element, en dat midden is ook het
+  // midden van de omhullende rechthoek — dus vanaf daar rekenen klopt precies.
+  const r = this._container.getBoundingClientRect();
+  const vanafMidden = L.point(e.clientX - (r.left + r.width / 2), e.clientY - (r.top + r.height / 2));
+  return roteerPunt(vanafMidden, -state.kaartHoek).add(
+    L.point(this._container.offsetWidth / 2, this._container.offsetHeight / 2)
+  );
+};
+
+const origVerplaats = L.Draggable.prototype._updatePosition;
+L.Draggable.prototype._updatePosition = function () {
+  if (staatScheef() && this._element === map._mapPane && this._lastEvent) {
+    const e = this._lastEvent;
+    const v = e.touches && e.touches.length === 1 ? e.touches[0] : e;
+    const verschil = L.point(v.clientX, v.clientY).subtract(this._startPoint);
+    this._newPos = this._startPos.add(roteerPunt(verschil, -state.kaartHoek));
+  }
+  origVerplaats.call(this);
+};
+
+const kaartvak = $('kaartvak');
+
+/** De kaart moet zo groot zijn als de diagonaal van zijn venster; zie style.css. */
+function zetVakMaten() {
+  const b = kaartvak.clientWidth;
+  const h = kaartvak.clientHeight;
+  const stijl = document.documentElement.style;
+  stijl.setProperty('--vakbreedte', `${b}px`);
+  stijl.setProperty('--vakhoogte', `${h}px`);
+  stijl.setProperty('--kaartzijde', `${Math.ceil(Math.hypot(b, h))}px`);
+}
+
+let rechtTimer = null;
+
+function zetKaartHoek(graden, { direct = false } = {}) {
+  state.kaartHoek = graden;
+  document.documentElement.style.setProperty('--kaartdraai', `${graden.toFixed(2)}deg`);
+  document.body.classList.toggle('direct-draaien', direct);
+  clearTimeout(rechtTimer);
+
+  if (staatScheef()) {
+    if (!document.body.classList.contains('gedraaid')) {
+      zetVakMaten();
+      document.body.classList.add('gedraaid');
+      map.invalidateSize({ pan: false });
+    }
+    return;
+  }
+  // Weer recht: pas terugschakelen naar het gewone formaat als de kaart is
+  // uitgedraaid, anders springt hij halverwege de animatie.
+  rechtTimer = setTimeout(
+    () => {
+      document.body.classList.remove('gedraaid');
+      map.invalidateSize({ pan: false });
+    },
+    direct ? 0 : DRAAI_MS
+  );
+}
+
+/** Draait langs de korte kant naar `doel` graden; `demping` tempert gps-ruis. */
+function draaiNaar(doel, { direct = false, demping = 1 } = {}) {
+  const verschil = ((doel - state.kaartHoek + 540) % 360) - 180;
+  zetKaartHoek(state.kaartHoek + verschil * demping, { direct });
+}
+
+const DRAAISTANDEN = {
+  noord: { tekst: 'Noord boven', uitleg: 'De kaart staat op het noorden.' },
+  koers: { tekst: 'Rijrichting', uitleg: 'De kaart draait mee met je rijrichting.' },
+  vrij: { tekst: 'Vrij gedraaid', uitleg: 'Je hebt de kaart zelf gedraaid.' },
+};
+
+function werkDraaiknopBij() {
+  const stand = DRAAISTANDEN[state.kaartModus];
+  const knop = $('volgDraai');
+  knop.textContent = stand.tekst;
+  knop.setAttribute('aria-pressed', String(state.kaartModus === 'koers'));
+  knop.setAttribute('aria-label', `Kaartrichting: ${stand.uitleg} Tik voor de volgende stand.`);
+}
+
+function kiesDraaistand(modus) {
+  state.kaartModus = modus;
+  if (modus === 'noord') draaiNaar(0);
+  // Meedraaien kan alleen als de app weet waar je heen gaat; zonder positie
+  // gebeurt er anders niets en lijkt de knop stuk.
+  if (modus === 'koers' && state.volgId == null) startPositie();
+  werkDraaiknopBij();
+  bewaarSessie();
+}
+
+$('volgDraai').addEventListener('click', () => {
+  // Vanuit vrij gedraaid eerst terug naar het noorden: dat is het herkenbare
+  // ijkpunt, en van daaruit is meedraaien één tik verder.
+  kiesDraaistand(state.kaartModus === 'noord' ? 'koers' : 'noord');
+});
+
+/*
+ * Draaien met twee vingers, tegelijk met knijpzoomen — daar heeft Leaflet geen
+ * last van, want het kijkt alleen naar de afstand tussen de vingers en wij
+ * alleen naar de hoek. De drempel van tien graden voorkomt dat een gewone
+ * knijpbeweging, die nooit helemaal recht is, de kaart ongevraagd scheefzet.
+ */
+const DRAAIDREMPEL = 10;
+let vingerhoek = null;
+let vingerdraai = 0;
+
+const hoekTussenVingers = (t) =>
+  (Math.atan2(t[1].clientY - t[0].clientY, t[1].clientX - t[0].clientX) * 180) / Math.PI;
+
+$('kaart').addEventListener(
+  'touchstart',
+  (e) => {
+    if (e.touches.length !== 2) return;
+    vingerhoek = hoekTussenVingers(e.touches);
+    vingerdraai = 0;
+  },
+  { passive: true }
+);
+
+$('kaart').addEventListener(
+  'touchmove',
+  (e) => {
+    if (e.touches.length !== 2 || vingerhoek == null) return;
+    const nu = hoekTussenVingers(e.touches);
+    const stap = ((nu - vingerhoek + 540) % 360) - 180;
+    vingerhoek = nu;
+    vingerdraai += stap;
+    if (Math.abs(vingerdraai) < DRAAIDREMPEL) return;
+    if (state.kaartModus !== 'vrij') {
+      state.kaartModus = 'vrij';
+      werkDraaiknopBij();
+    }
+    zetKaartHoek(state.kaartHoek + stap, { direct: true });
+  },
+  { passive: true }
+);
+
+// Ook bij touchcancel: een telefoongesprek of een systeemveeg haalt de vingers
+// weg zonder touchend, en dan zou de kaart in de directe stand blijven hangen.
+for (const soort of ['touchend', 'touchcancel']) {
+  $('kaart').addEventListener(soort, () => {
+    if (vingerhoek == null) return;
+    vingerhoek = null;
+    document.body.classList.remove('direct-draaien');
+    bewaarSessie();
+  });
+}
+
+/** Kompaskoers van a naar b, in graden vanaf het noorden. */
+function peiling(aLat, aLon, bLat, bLon) {
+  const p = Math.PI / 180;
+  const dLon = (bLon - aLon) * p;
+  const y = Math.sin(dLon) * Math.cos(bLat * p);
+  const x =
+    Math.cos(aLat * p) * Math.sin(bLat * p) -
+    Math.sin(aLat * p) * Math.cos(bLat * p) * Math.cos(dLon);
+  return (Math.atan2(y, x) / p + 360) % 360;
+}
+
+/*
+ * De koers van de gps is alleen bruikbaar als je ook echt rijdt: stilstaand
+ * levert hij niets dan ruis, en een kaart die dan rondtolt is onbruikbaar.
+ * Geeft het toestel geen koers mee — dat komt voor — dan leiden we hem af uit
+ * de vorige positie, mits je ver genoeg bent opgeschoven.
+ */
+const STILSTAND_M_PER_S = 0.8;
+const GENOEG_VERPLAATST_M = 8;
+
+function bepaalKoers(pos, lat, lon) {
+  const vorig = state.vorigeFix;
+  state.vorigeFix = { lat, lon };
+  const { heading, speed } = pos.coords;
+  if (speed != null && Number.isFinite(speed) && speed < STILSTAND_M_PER_S) return null;
+  if (heading != null && Number.isFinite(heading)) return heading;
+  if (vorig && meters(vorig.lat, vorig.lon, lat, lon) > GENOEG_VERPLAATST_M) {
+    return peiling(vorig.lat, vorig.lon, lat, lon);
+  }
+  return null;
+}
+
+addEventListener('resize', () => {
+  zetVakMaten();
+  if (staatScheef()) map.invalidateSize({ pan: false });
+});
+zetVakMaten();
+werkDraaiknopBij();
 
 map.on('dragstart', () => {
   if (state.volgId != null) {

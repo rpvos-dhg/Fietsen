@@ -112,7 +112,61 @@ body {
     max(40px, env(safe-area-inset-bottom)) max(22px, env(safe-area-inset-left));
 }
 
-#kaart { height: 100%; background: var(--lijn-zacht); }
+/*
+ * Leaflet kan zelf niet draaien, dus doet CSS het: de kaart krijgt een
+ * rotatie om zijn eigen middelpunt. Daarvoor moet hij groter zijn dan wat je
+ * ziet — een gedraaid vierkant laat anders lege driehoeken in de hoeken staan.
+ * Het venster eromheen snijdt de rest weg. `--kaartzijde` is de diagonaal van
+ * dat venster en wordt in app.js uitgerekend.
+ */
+#kaartvak { position: relative; overflow: hidden; height: 100%; }
+#kaart {
+  position: absolute;
+  inset: 0;
+  background: var(--lijn-zacht);
+  transform-origin: 50% 50%;
+  transition: transform 350ms ease-out;
+}
+
+body.gedraaid #kaart {
+  inset: auto;
+  left: 50%;
+  top: 50%;
+  width: var(--kaartzijde);
+  height: var(--kaartzijde);
+  transform: translate(-50%, -50%) rotate(var(--kaartdraai, 0deg));
+}
+
+/* Tijdens een draaiende vinger moet de kaart de vinger volgen, niet een
+   animatie van 350 ms achterlopen. */
+body.direct-draaien #kaart { transition: none; }
+@media (prefers-reduced-motion: reduce) {
+  #kaart { transition: none; }
+}
+
+/*
+ * Wat leesbaar moet blijven draait tegen: de knooppuntnummers en Leaflets eigen
+ * bedieningselementen. Die laatste zitten in de gedraaide kaart en zouden
+ * anders scheef in de hoeken van het grote vierkant staan, ver buiten beeld;
+ * daarom krijgen ze het formaat van het zichtbare venster terug.
+ *
+ * De tooltips blijven met de kaart meedraaien, en dat moet ook: Leaflet zet ze
+ * met een eigen `transform` op hun plek, dus een tegendraai hier zou ze van hun
+ * knooppunt af schuiven. Ze horen bij het plannen, niet bij het fietsen.
+ */
+body.gedraaid .kp-marker {
+  transform: rotate(calc(-1 * var(--kaartdraai, 0deg)));
+}
+body.gedraaid .leaflet-control-container {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: var(--vakbreedte);
+  height: var(--vakhoogte);
+  transform: translate(-50%, -50%) rotate(calc(-1 * var(--kaartdraai, 0deg)));
+  /* Anders vangt deze laag over de hele kaart het slepen af. */
+  pointer-events: none;
+}
 
 /* --- kop --- */
 
@@ -529,7 +583,7 @@ body.volgmodus { grid-template-columns: 1fr; grid-template-rows: 1fr; }
 body.volgmodus #panel { display: none; }
 /* 100dvh volgt de balken van een mobiele browser; 100vh blijft als terugval
    voor browsers die de dynamische eenheid niet kennen. */
-body.volgmodus #kaart { height: 100vh; height: 100dvh; }
+body.volgmodus #kaartvak { height: 100vh; height: 100dvh; }
 
 .volgbalk {
   position: fixed;
@@ -573,7 +627,11 @@ body.volgmodus .leaflet-right { padding-right: env(safe-area-inset-right); }
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.volgknoppen { display: flex; gap: 8px; flex: 0 0 auto; }
+/* Vier knoppen passen op een telefoon niet naast een leesbare regel tekst; dan
+   mag de balk een tweede rij pakken. Op een breder scherm blijft het één rij. */
+.volgbalk { flex-wrap: wrap; }
+.volginfo { flex: 1 1 150px; }
+.volgknoppen { display: flex; gap: 8px; flex: 0 1 auto; flex-wrap: wrap; justify-content: flex-end; }
 .volgknoppen button[aria-pressed="true"] {
   background: var(--actie-vlak);
   border-color: var(--actie);

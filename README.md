@@ -161,6 +161,19 @@ zak — dan blijft de positieweergave gewoon aan staan. De balk meldt hoe lang h
 stil is en pakt de draad op zodra er weer een fix is; alleen het intrekken van de
 toestemming zet hem uit.
 
+**De kaart kan draaien.** Met twee vingers draai je hem zelf, net als knijpen om
+te zoomen — de eerste tien graden zijn drempel, zodat een gewone knijpbeweging de
+kaart niet ongevraagd scheefzet. De knop in de balk wisselt tussen *Noord boven*
+en *Rijrichting*: in die laatste stand draait de kaart mee met de richting waarin
+je fietst, zodat wat op het scherm rechtsaf gaat ook in het echt rechtsaf gaat.
+Sta je stil, dan blijft de kaart staan; de koers van een stilstaande gps is
+ruis. Bij het sluiten van de volgmodus springt de kaart terug op het noorden.
+
+Leaflet kan zelf geen gedraaide kaart. Het draaien gebeurt daarom in CSS, en het
+slepen en het aantikken van de kaart worden teruggerekend naar de rechte stand —
+anders zou de kaart schuin onder je vinger weglopen en zou knijpzoomen om het
+verkeerde punt draaien.
+
 **De rit overleeft een herstart van de app.** Een telefoon gooit een webpagina
 weg zodra je hem wegdrukt om een bericht te beantwoorden, en een veeg omlaag kan
 in een browser de pagina herladen. Welke route je volgt, of de volgmodus aanstond,

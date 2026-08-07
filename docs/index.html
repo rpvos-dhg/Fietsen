@@ -144,7 +144,10 @@
     </footer>
   </aside>
 
-  <main id="kaart"></main>
+  <!-- De kaart zit in een venster dat hem afsnijdt. Draait de kaart, dan wordt
+       hij zelf zo groot als de diagonaal van dat venster, zodat er in de hoeken
+       geen leegte ontstaat. -->
+  <main id="kaartvak"><div id="kaart"></div></main>
 
   <div id="volgbalk" class="volgbalk hidden" role="region" aria-label="Route volgen">
     <div class="volginfo">
@@ -152,6 +155,7 @@
       <span id="volgDetail"></span>
     </div>
     <div class="volgknoppen">
+      <button id="volgDraai" class="ghost small">Noord boven</button>
       <button id="volgCentreer" class="ghost small hidden">Centreer</button>
       <button id="volgPositie" class="ghost small" aria-pressed="false">Toon mijn positie</button>
       <button id="volgStop" class="ghost small">Sluit</button>

@@ -70,6 +70,8 @@ Bevestigde functionaliteit:
   knooppunt en resterende afstand. De lopende rit wordt in de browser bewaard en
   na een herstart van de webapp hersteld, want een telefoon gooit een pagina weg
   zodra hij naar de achtergrond gaat.
+- De kaart kan draaien: met twee vingers zelf, of automatisch mee met de
+  rijrichting, zodat linksaf op het scherm ook linksaf op de weg is.
 
 Technische randvoorwaarden die toekomstig werk moet respecteren:
 
