@@ -66,6 +66,10 @@ Bevestigde functionaliteit:
 - Een zelf ingevoerde knooppuntreeks omzetten in een route, met waarschuwing bij
   etappes die op een verkeerde regio wijzen.
 - GPX-export met spoor en knooppunt-waypoints.
+- Een volgmodus voor onderweg: schermvullende kaart, eigen positie, eerstvolgend
+  knooppunt en resterende afstand. De lopende rit wordt in de browser bewaard en
+  na een herstart van de webapp hersteld, want een telefoon gooit een pagina weg
+  zodra hij naar de achtergrond gaat.
 
 Technische randvoorwaarden die toekomstig werk moet respecteren:
 
@@ -82,6 +86,13 @@ Technische randvoorwaarden die toekomstig werk moet respecteren:
   HTTP 200 en nul elementen buiten hun gebied; alleen wereldwijde mirrors zijn
   bruikbaar.
 - BRouter dient als terugval wanneer het knooppuntennetwerk een gat heeft.
+- Een webapp op een telefoon heeft geen achtergrondleven: naar de achtergrond
+  gaan betekent dat de positiewatch stilvalt, het schermslot losgelaten wordt en
+  de pagina weggegooid kan worden. Alles wat onderweg nodig is moet daarom
+  herstelbaar zijn uit de browseropslag, en positie en schermslot moeten bij
+  terugkeer opnieuw worden aangevraagd.
+- Fouten van de locatiebepaling zijn onderweg normaal. Alleen een geweigerde
+  toestemming is blijvend; time-outs en "positie onbeschikbaar" gaan over.
 
 Terminologie: *knooppunt* is een genummerd kruispunt in het netwerk, *etappe* de
 verbinding tussen twee opeenvolgende knooppunten, *rondje* een sluitende route

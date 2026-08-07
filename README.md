@@ -29,6 +29,11 @@ Wat er dan lokaal blijft staan:
 - **opgehaalde gebieden** in IndexedDB, dertig dagen houdbaar;
 - **kaarttegels van gebieden die je bekeken hebt**, via de service worker. Val je
   onderweg zonder bereik, dan blijft de kaart zichtbaar waar je al geweest bent.
+- **de rit die je nu volgt**, zodat de volgmodus terugkomt als het systeem de
+  pagina tussendoor heeft weggegooid.
+
+Openen met slecht bereik wacht hooguit tweeënhalve seconde op het net; daarna
+komt de app uit de cache en wordt de nieuwe versie op de achtergrond opgehaald.
 
 ## Publiceren
 
@@ -150,6 +155,19 @@ de lijn en de nummers, zoals je de bordjes zou volgen.
 **Toon mijn positie** is een aparte knop en staat standaard uit. Aan: een stip
 met nauwkeurigheidscirkel, het eerstvolgende knooppunt, de resterende afstand en
 — als je meer dan 60 meter van de lijn zit — hoe ver je ernaast bent.
+
+Valt het gps-signaal weg — een tunnel, een dichte bosrand, de telefoon net uit je
+zak — dan blijft de positieweergave gewoon aan staan. De balk meldt hoe lang het
+stil is en pakt de draad op zodra er weer een fix is; alleen het intrekken van de
+toestemming zet hem uit.
+
+**De rit overleeft een herstart van de app.** Een telefoon gooit een webpagina
+weg zodra je hem wegdrukt om een bericht te beantwoorden, en een veeg omlaag kan
+in een browser de pagina herladen. Welke route je volgt, of de volgmodus aanstond,
+of je positie aanstond en waar de kaart keek staan daarom in de browser bewaard.
+Kom je terug, dan staat de rit er weer — tot 24 uur na de laatste wijziging.
+Het scherm wordt wakker gehouden zolang je volgt, en dat slot wordt opnieuw
+aangevraagd nadat het scherm vergrendeld is geweest.
 
 Je positie wordt nergens heen gestuurd; hij wordt alleen in de browser gebruikt.
 Wel eerlijk erbij: de kaarttegels van het gebied waar je bent worden bij PDOK

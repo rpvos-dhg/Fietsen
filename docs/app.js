@@ -61,6 +61,10 @@ const state = {
   gpxUrl: null,
   volg: null,          // voorgerekende afstanden voor de volgmodus
   volgId: null,        // watchPosition-id; null = locatie staat uit
+  laatsteIndex: null,  // waar op de route je de vorige fix zat
+  laatsteFix: 0,       // tijdstip van de laatste gps-fix
+  watchGestart: 0,     // wanneer de huidige watchPosition begon
+  signaalTimer: null,  // bewaakt of er nog fixes binnenkomen
   positieLaag: null,
   centreert: true,
   wakeLock: null,
@@ -343,10 +347,12 @@ function schrijfBewaard(lijst) {
 /** Zes decimalen is ~11 cm; meer opslaan heeft geen zin en kost ruimte. */
 const kort = (coords) => coords.map(([lon, lat]) => [+lon.toFixed(6), +lat.toFixed(6)]);
 
-function bewaarRoute(route) {
-  const lijst = laadBewaard();
-  if (lijst.some((r) => r.id === route.id)) return { ok: true, dubbel: true };
-  lijst.unshift({
+/**
+ * De platte vorm waarin een route de browser in gaat: alles wat nodig is om hem
+ * terug te tekenen, een GPX te maken en hem te volgen, zonder de kaartlagen.
+ */
+function alsPlatteRoute(route) {
+  return {
     id: route.id,
     naam: route.naam,
     bewaardOp: new Date().toISOString(),
@@ -357,7 +363,13 @@ function bewaarRoute(route) {
     legs: route.legs || [],
     waarschuwing: route.waarschuwing || null,
     coords: kort(route.geojson.geometry.coordinates),
-  });
+  };
+}
+
+function bewaarRoute(route) {
+  const lijst = laadBewaard();
+  if (lijst.some((r) => r.id === route.id)) return { ok: true, dubbel: true };
+  lijst.unshift(alsPlatteRoute(route));
   try {
     schrijfBewaard(lijst);
     return { ok: true };
@@ -419,6 +431,111 @@ function toonBewaard() {
   }
   blok.classList.remove('hidden');
 }
+
+/* ---------------- de lopende sessie ---------------- */
+
+/*
+ * Onderweg is een browsertabblad geen veilige plek. Op een telefoon gooit het
+ * systeem de pagina weg zodra je hem in je zak stopt, een bericht beantwoordt of
+ * even de kaart-app opent; bij terugkomst begint de webapp overnieuw. Zonder de
+ * onderstaande regels sta je dan langs de weg met een leeg beginscherm.
+ *
+ * Daarom houdt de app de lopende rit apart bij: welke route je volgt, of de
+ * volgmodus aanstond, of je positie aanstond en waar de kaart keek. Bij het
+ * opstarten wordt dat teruggezet, zodat een tussentijdse herstart hooguit een
+ * seconde kost in plaats van je rit.
+ */
+const SESSIE = 'knooppuntroutes.sessie';
+const SESSIE_HOUDBAAR_MS = 24 * 60 * 60 * 1000;
+
+let herstelBezig = false;
+
+function vergeetSessie() {
+  localStorage.removeItem(SESSIE);
+}
+
+function bewaarSessie() {
+  // Tijdens het herstellen niet terugschrijven: dan zou een half opgebouwde
+  // toestand de zojuist gelezen sessie overschrijven.
+  if (herstelBezig) return;
+  // Geen route op het scherm is geen reden om een bewaarde rit weg te gooien:
+  // dit moment komt ook langs vlak voordat de pagina herlaadt, en dan is het
+  // juist die rit die terug moet komen. Wissen doet alleen vergeetSessie().
+  if (!state.huidigeRoute) return;
+  const midden = map.getCenter();
+  const sessie = {
+    bijgewerkt: Date.now(),
+    volgmodus: document.body.classList.contains('volgmodus'),
+    positie: state.volgId != null,
+    centreert: state.centreert,
+    midden: [midden.lat, midden.lng],
+    zoom: map.getZoom(),
+    route: alsPlatteRoute(state.huidigeRoute),
+  };
+  try {
+    localStorage.setItem(SESSIE, JSON.stringify(sessie));
+  } catch {
+    /* Opslag vol: vervelend, maar een rit mag daar niet op stuklopen. */
+  }
+}
+
+function leesSessie() {
+  let s = null;
+  try {
+    s = JSON.parse(localStorage.getItem(SESSIE) || 'null');
+  } catch {
+    s = null;
+  }
+  if (!s?.route?.coords?.length) return null;
+  // Een rit van gisteren is geen lopende rit meer; die staat desgewenst bij de
+  // bewaarde routes.
+  if (Date.now() - (s.bijgewerkt || 0) > SESSIE_HOUDBAAR_MS) {
+    localStorage.removeItem(SESSIE);
+    return null;
+  }
+  return s;
+}
+
+function herstelSessie() {
+  const s = leesSessie();
+  if (!s) return;
+  herstelBezig = true;
+  try {
+    state.gekozenId = s.route.id;
+    toonRoute(alsRoute(s.route));
+    if (s.volgmodus) {
+      startVolgen();
+      // De uitsnede van startVolgen laat de hele route zien; had je de kaart bij
+      // je eigen positie staan, dan is dát waar je verder wilt.
+      if (s.midden) map.setView(s.midden, s.zoom || map.getZoom(), { animate: false });
+      if (s.positie) {
+        startPositie();
+        // Had je de kaart zelf weggeschoven, dan blijft dat zo, inclusief de
+        // knop om weer op jezelf te centreren.
+        state.centreert = s.centreert !== false;
+        $('volgCentreer').classList.toggle('hidden', state.centreert);
+      }
+      $('volgDetail').textContent = 'Rit hervat na herstart van de app.';
+    } else {
+      status('De laatste route staat er weer.');
+      setTimeout(() => status(''), 4000);
+    }
+  } finally {
+    herstelBezig = false;
+  }
+  bewaarSessie();
+}
+
+/*
+ * Het wegvallen van een pagina op een telefoon gaat via pagehide en via
+ * visibilitychange, en welke van de twee je krijgt verschilt per systeem — dus
+ * allebei. Deze twee zijn de laatste momenten waarop nog iets bewaard kan
+ * worden; unload is op iOS onbetrouwbaar.
+ */
+addEventListener('pagehide', bewaarSessie);
+addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') bewaarSessie();
+});
 
 /* ---------------- GPX in de browser ---------------- */
 
@@ -554,6 +671,7 @@ function toonRoute(route) {
   }
 
   $('resultaat').classList.remove('hidden');
+  bewaarSessie();
 }
 
 /* ---------------- tabbladen ---------------- */
@@ -856,10 +974,22 @@ function bereidVolgenVoor(route) {
   return { coords, cum, kpIndex, totaal: cum[cum.length - 1] };
 }
 
-function dichtstbijzijndePunt(volg, lat, lon) {
-  let best = 0;
+/** Eerste punt dat minstens `afstand` meter langs de route ligt. */
+function indexOpAfstand(cum, afstand) {
+  let laag = 0;
+  let hoog = cum.length - 1;
+  while (laag < hoog) {
+    const mid = (laag + hoog) >> 1;
+    if (cum[mid] < afstand) laag = mid + 1;
+    else hoog = mid;
+  }
+  return laag;
+}
+
+function scan(volg, lat, lon, van, tot) {
+  let best = van;
   let bestD = Infinity;
-  for (let i = 0; i < volg.coords.length; i++) {
+  for (let i = van; i <= tot; i++) {
     const d = meters(lat, lon, volg.coords[i][1], volg.coords[i][0]);
     if (d < bestD) {
       bestD = d;
@@ -869,12 +999,38 @@ function dichtstbijzijndePunt(volg, lat, lon) {
   return { index: best, afstand: bestD };
 }
 
+/*
+ * Een rondje raakt zichzelf: bij een lus, een parallel fietspad of een stuk dat
+ * je heen én terug rijdt ligt het hemelsbreed dichtstbijzijnde punt soms
+ * kilometers verderop in de route. Dan springt "nog zoveel km" heen en weer en
+ * wijst het volgende knooppunt de verkeerde kant op.
+ *
+ * Daarom zoeken we eerst in een venster rond waar je de vorige keer zat — een
+ * halve kilometer terug voor gps-ruis, anderhalve vooruit voor een lange stilte
+ * — en pas als daar niets dichtbij ligt over de hele route. Dat laatste is ook
+ * wat er gebeurt als je middenin de rit de app opnieuw opent.
+ */
+const VENSTER_TERUG_M = 500;
+const VENSTER_VOORUIT_M = 1500;
+const VENSTER_GOED_M = 120;
+
+function dichtstbijzijndePunt(volg, lat, lon, vorige = null) {
+  if (vorige != null && vorige < volg.coords.length) {
+    const van = indexOpAfstand(volg.cum, volg.cum[vorige] - VENSTER_TERUG_M);
+    const tot = indexOpAfstand(volg.cum, volg.cum[vorige] + VENSTER_VOORUIT_M);
+    const dichtbij = scan(volg, lat, lon, van, Math.max(van, tot));
+    if (dichtbij.afstand <= VENSTER_GOED_M) return dichtbij;
+  }
+  return scan(volg, lat, lon, 0, volg.coords.length - 1);
+}
+
 const km = (m) => `${(m / 1000).toFixed(1).replace('.', ',')} km`;
 
 function startVolgen() {
   const route = state.huidigeRoute;
   if (!route) return;
   state.volg = bereidVolgenVoor(route);
+  state.laatsteIndex = null;
   document.body.classList.add('volgmodus');
   $('volgbalk').classList.remove('hidden');
   state.spookLaag.clearLayers();
@@ -884,25 +1040,40 @@ function startVolgen() {
   $('volgTitel').textContent = km(route.meters);
   $('volgDetail').textContent = `${route.knooppunten.length} knooppunten · ${route.reeks || ''}`;
   vraagSchermWakker();
+  bewaarSessie();
 }
 
 function stopVolgen() {
   document.body.classList.remove('volgmodus');
   $('volgbalk').classList.add('hidden');
+  $('volgbalk').classList.remove('naast-route', 'geen-signaal');
   stopPositie();
   laatSchermLos();
   map.invalidateSize();
+  bewaarSessie();
 }
 
 /* --- positie: uitdrukkelijk opt-in, blijft in de browser --- */
 
+const GPS_OPTIES = { enableHighAccuracy: true, maximumAge: 2000, timeout: 20000 };
+
+/** Na zoveel stilte is er iets mis genoeg om het te melden. */
+const STIL_MELDEN_MS = 20_000;
+/** En na zoveel stilte gaan we ervan uit dat de watch zelf is blijven hangen. */
+const STIL_HERSTARTEN_MS = 45_000;
+
 function stopPositie() {
   if (state.volgId != null) navigator.geolocation.clearWatch(state.volgId);
   state.volgId = null;
+  clearInterval(state.signaalTimer);
+  state.signaalTimer = null;
+  state.laatsteFix = 0;
   state.positieLaag?.clearLayers();
   $('volgPositie').setAttribute('aria-pressed', 'false');
   $('volgPositie').textContent = 'Toon mijn positie';
   $('volgCentreer').classList.add('hidden');
+  $('volgbalk').classList.remove('geen-signaal');
+  bewaarSessie();
 }
 
 /**
@@ -928,23 +1099,59 @@ function startPositie() {
   $('volgPositie').setAttribute('aria-pressed', 'true');
   $('volgPositie').textContent = 'Positie uit';
 
-  state.volgId = navigator.geolocation.watchPosition(
-    (pos) => werkPositieBij(pos),
-    (err) => {
-      stopPositie();
-      meldOnderweg(
-        err.code === err.PERMISSION_DENIED
-          ? 'Geen toegang tot je locatie. De route blijft gewoon op de kaart staan.'
-          : `Locatie niet beschikbaar: ${err.message}`
-      );
-    },
-    { enableHighAccuracy: true, maximumAge: 2000, timeout: 20000 }
-  );
+  beginWatch();
+  clearInterval(state.signaalTimer);
+  state.signaalTimer = setInterval(bewaakSignaal, 5000);
+  bewaarSessie();
+}
+
+function beginWatch() {
+  if (state.volgId != null) navigator.geolocation.clearWatch(state.volgId);
+  state.watchGestart = Date.now();
+  state.volgId = navigator.geolocation.watchPosition(werkPositieBij, opPositieFout, GPS_OPTIES);
+}
+
+/*
+ * Alleen een geweigerde toestemming is een reden om ermee te stoppen. Een
+ * tunnel, een bosrand of een telefoon die net uit je zak komt levert TIMEOUT of
+ * POSITION_UNAVAILABLE op; dat is onderweg doodnormaal en gaat vanzelf over.
+ * Daarvoor de hele positieweergave uitzetten — zoals eerder gebeurde — betekent
+ * dat je hem met natte handschoenen weer moet aanzetten, precies op het moment
+ * dat je hem nodig hebt.
+ */
+function opPositieFout(err) {
+  if (err.code === err.PERMISSION_DENIED) {
+    stopPositie();
+    meldOnderweg('Geen toegang tot je locatie. De route blijft gewoon op de kaart staan.');
+    return;
+  }
+  bewaakSignaal();
+}
+
+/**
+ * Sommige browsers laten de watch na een tijd op de achtergrond stilvallen
+ * zonder ooit nog een fix of een fout te geven. Alleen opnieuw beginnen helpt
+ * dan, dus houden we bij wanneer de laatste fix binnenkwam.
+ */
+function bewaakSignaal() {
+  if (state.volgId == null) return;
+  const stil = Date.now() - (state.laatsteFix || state.watchGestart || 0);
+  if (stil < STIL_MELDEN_MS) return;
+
+  $('volgbalk').classList.add('geen-signaal');
+  $('volgDetail').textContent = `Geen gps-signaal, ${Math.round(stil / 1000)} s stil.`;
+  if (!state.laatsteFix) $('volgTitel').textContent = 'Zoeken naar je positie…';
+
+  if (stil > STIL_HERSTARTEN_MS && Date.now() - state.watchGestart > STIL_HERSTARTEN_MS) {
+    beginWatch();
+  }
 }
 
 function werkPositieBij(pos) {
   const { latitude: lat, longitude: lon, accuracy } = pos.coords;
   const volg = state.volg;
+  state.laatsteFix = Date.now();
+  $('volgbalk').classList.remove('geen-signaal');
   state.positieLaag.clearLayers();
   L.circle([lat, lon], {
     radius: Math.max(accuracy, 5),
@@ -963,7 +1170,8 @@ function werkPositieBij(pos) {
   if (state.centreert) map.setView([lat, lon], Math.max(map.getZoom(), 15), { animate: false });
 
   if (!volg) return;
-  const { index, afstand } = dichtstbijzijndePunt(volg, lat, lon);
+  const { index, afstand } = dichtstbijzijndePunt(volg, lat, lon, state.laatsteIndex);
+  state.laatsteIndex = index;
   const resterend = Math.max(0, volg.totaal - volg.cum[index]);
   const volgendeIdx = volg.kpIndex.findIndex((i) => i > index);
   const volgende =
@@ -980,21 +1188,47 @@ function werkPositieBij(pos) {
 /* --- scherm aan houden tijdens het fietsen --- */
 
 async function vraagSchermWakker() {
+  if (state.wakeLock) return;
   try {
-    state.wakeLock = await navigator.wakeLock?.request('screen');
+    const slot = await navigator.wakeLock?.request('screen');
+    if (!slot) return;
+    state.wakeLock = slot;
+    /*
+     * Het systeem laat het slot zelf los zodra het scherm dooft of de app naar
+     * de achtergrond gaat. Zonder dit te onthouden denkt de app dat het scherm
+     * nog wakker gehouden wordt en vraagt niemand het ooit opnieuw aan — de rest
+     * van de rit valt het scherm dan elke minuut in slaap.
+     */
+    slot.addEventListener?.('release', () => {
+      if (state.wakeLock === slot) state.wakeLock = null;
+    });
   } catch {
-    /* niet beschikbaar of geweigerd; geen probleem */
+    /* niet beschikbaar of geweigerd; de rit gaat gewoon door */
+    state.wakeLock = null;
   }
 }
 function laatSchermLos() {
   state.wakeLock?.release?.();
   state.wakeLock = null;
 }
+
+/*
+ * Terug in beeld na een schermvergrendeling of een uitstapje naar een andere
+ * app: het slot opnieuw aanvragen, en nagaan of de positiewatch nog leeft.
+ * pageshow hoort erbij voor het geval de pagina uit de terug-cache komt.
+ */
+function hervatNaTerugkeer() {
+  if (!document.body.classList.contains('volgmodus')) return;
+  vraagSchermWakker();
+  if (state.volgId == null) return;
+  // Was de app zo lang weg dat er geen verse fix meer is, dan is de watch
+  // vrijwel zeker onderweg stilgevallen. Opnieuw beginnen kost niets.
+  if (Date.now() - (state.laatsteFix || state.watchGestart) > STIL_MELDEN_MS) beginWatch();
+}
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible' && document.body.classList.contains('volgmodus')) {
-    vraagSchermWakker();
-  }
+  if (document.visibilityState === 'visible') hervatNaTerugkeer();
 });
+addEventListener('pageshow', hervatNaTerugkeer);
 
 map.on('dragstart', () => {
   if (state.volgId != null) {
@@ -1008,6 +1242,7 @@ $('volgStop').addEventListener('click', stopVolgen);
 $('volgCentreer').addEventListener('click', () => {
   state.centreert = true;
   $('volgCentreer').classList.add('hidden');
+  bewaarSessie();
 });
 $('volgPositie').addEventListener('click', () => {
   if (state.volgId != null) stopPositie();
@@ -1072,5 +1307,13 @@ $('wis').addEventListener('click', () => {
   state.spookLaag.clearLayers();
   state.spoken.clear();
   $('resultaat').classList.add('hidden');
+  state.huidigeRoute = null;
+  vergeetSessie();
   status('');
 });
+
+/*
+ * Als laatste, want herstellen tekent een route en kan de volgmodus openen: dan
+ * moeten alle kaartlagen, knoppen en luisteraars hierboven al klaarstaan.
+ */
+herstelSessie();

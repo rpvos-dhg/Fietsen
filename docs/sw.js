@@ -10,7 +10,7 @@
  * kaart zichtbaar als het bereik wegvalt. Ze verlopen niet met een nieuwe versie
  * van de app, want de tegels zelf veranderen daar niet van.
  */
-const VERSIE = 'v2';
+const VERSIE = 'v3';
 const APP_CACHE = `knooppuntroutes-${VERSIE}`;
 const TEGEL_CACHE = 'knooppuntroutes-tegels';
 const MAX_TEGELS = 3000;
@@ -114,15 +114,38 @@ self.addEventListener('fetch', (e) => {
 
   // De app zelf: eerst het net (zodat een nieuwe versie meteen doorkomt), met de
   // cache als vangnet wanneer je offline bent.
-  e.respondWith(
-    fetch(e.request)
-      .then((res) => {
-        if (res.ok) {
-          const kopie = res.clone();
-          caches.open(APP_CACHE).then((c) => c.put(e.request, kopie));
-        }
-        return res;
-      })
-      .catch(() => caches.match(e.request).then((r) => r || caches.match('./index.html')))
-  );
+  e.respondWith(appSchil(e.request));
 });
+
+/*
+ * Offline geeft fetch meteen een fout, maar "verbonden zonder werkelijk bereik"
+ * — de normale toestand ergens in de polder — laat hem tientallen seconden
+ * hangen. Wie dan de app opent staat naar een wit scherm te kijken terwijl de
+ * hele boel gewoon in de cache staat. Daarom een wedstrijdje: is het net niet
+ * binnen NET_GEDULD_MS terug, dan wint de cache. Het netantwoord blijft lopen en
+ * ververst de cache alsnog, dus de volgende start heeft de nieuwe versie.
+ */
+const NET_GEDULD_MS = 2500;
+
+async function appSchil(request) {
+  const uitCache = caches.match(request);
+  const vanNet = fetch(request).then((res) => {
+    if (res.ok) {
+      const kopie = res.clone();
+      caches.open(APP_CACHE).then((c) => c.put(request, kopie));
+    }
+    return res;
+  });
+  // Wint de cache de wedstrijd, dan kijkt niemand meer naar dit antwoord; zonder
+  // deze lege vanger meldt de browser dat als een onafgehandelde fout.
+  vanNet.catch(() => {});
+
+  const traag = new Promise((klaar) => setTimeout(() => klaar(null), NET_GEDULD_MS));
+  try {
+    const eerste = await Promise.race([vanNet, traag.then(() => uitCache)]);
+    if (eerste) return eerste;
+    return await vanNet;
+  } catch {
+    return (await uitCache) || (await caches.match('./index.html'));
+  }
+}
