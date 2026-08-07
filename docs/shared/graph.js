@@ -164,36 +164,41 @@ export class Network {
   }
 }
 
-export function buildNetwork(elements) {
+/**
+ * Bouwt de graaf uit het compacte celformaat:
+ *
+ *   w: [[wegId, [lat, lon, lat, lon, ...]], ...]
+ *   n: [[knoopId, rcn_ref, lat, lon], ...]
+ *
+ * Meer heeft de app nooit gebruikt. De ruwe OSM-JSON bevatte daarnaast tags,
+ * bounds en node-id-lijsten die alleen geheugen en bandbreedte kostten.
+ */
+export function buildNetwork({ w = [], n = [] }) {
   const net = new Network();
 
-  for (const el of elements) {
-    if (el.type !== 'way') continue;
-    const geom = el.geometry;
-    if (!geom || geom.length < 2) continue;
+  for (const [, coords] of w) {
     let prev = -1;
-    for (const g of geom) {
-      if (!g) {
-        // gat in de geometrie (buiten het opgevraagde gebied): keten afbreken
+    for (let i = 0; i < coords.length; i += 2) {
+      const lat = coords[i];
+      const lon = coords[i + 1];
+      if (lat === null || lon === null) {
+        // gat in de geometrie (buiten het opgehaalde gebied): keten afbreken
         prev = -1;
         continue;
       }
-      const v = net.vertex(g.lat, g.lon);
+      const v = net.vertex(lat, lon);
       if (prev !== -1) net.link(prev, v);
       prev = v;
     }
   }
 
-  for (const el of elements) {
-    if (el.type !== 'node') continue;
-    const raw = el.tags?.rcn_ref?.trim();
-    if (!raw) continue;
+  for (const [id, raw, lat, lon] of n) {
     const ref = normRef(raw);
     if (!ref) continue;
-    const vertex = net.nearestVertex(el.lat, el.lon, 150);
+    const vertex = net.nearestVertex(lat, lon, 150);
     if (vertex === -1) continue; // knooppunt zonder netwerk in beeld
     const list = net.knooppunten.get(ref) || [];
-    list.push({ ref, osmRef: raw, lat: el.lat, lon: el.lon, vertex, osmId: el.id });
+    list.push({ ref, osmRef: raw, lat, lon, vertex, osmId: id });
     net.knooppunten.set(ref, list);
   }
 

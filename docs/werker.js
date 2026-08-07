@@ -12,7 +12,7 @@ import {
   opslagBeslag,
 } from './bronnen.js';
 import { buildNetwork, haversine } from './shared/graph.js';
-import { clusterHoogtepunten, leesHoogtepunten, HoogtepuntIndex } from './shared/hoogtepunten.js';
+import { clusterHoogtepunten, HoogtepuntIndex } from './shared/hoogtepunten.js';
 import { bouwKnooppuntGraaf } from './shared/knooppuntgraaf.js';
 import { genereerLussen } from './shared/genereer.js';
 import { resolveSequence, buildRoute } from './shared/route.js';
@@ -45,8 +45,7 @@ async function regio(bbox) {
       const hlTaak = haalHoogtepunten(bbox);
       hlTaak.catch(() => {});
 
-      const elementen = await netTaak; // zonder wegennet is er geen route
-      const net = buildNetwork(elementen);
+      const net = buildNetwork(await netTaak); // zonder wegennet is er geen route
 
       /*
        * De bezienswaardigheden bepalen alleen wélk rondje het mooist is; zonder
@@ -63,7 +62,9 @@ async function regio(bbox) {
             setTimeout(() => weiger(new Error('budget')), HOOGTEPUNTEN_BUDGET_MS)
           ),
         ]);
-        punten = clusterHoogtepunten(leesHoogtepunten(ruw));
+        // haalHoogtepunten levert de punten al geparst; het inlezen van ruwe
+        // OSM-tags gebeurt nu bij het bakken, of bij de Overpass-terugval.
+        punten = clusterHoogtepunten(ruw);
       } catch {
         volledig = false;
       }

@@ -1,36 +1,29 @@
-# Configuratie voor de optionele cache-server.
+# fly.toml app configuration file generated for knooppuntroutes-cache on 2026-08-07T01:03:36+02:00
 #
-# Dit bestand staat bewust in de projectwortel en niet in cache-server/: fly
-# gebruikt de map van fly.toml als build-context, en de Dockerfile kopieert
-# docs/shared/ omdat de server de query-opbouw met de webapp deelt. Vanuit
-# cache-server/ zou de build stuklopen op COPY docs/shared/.
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
 #
-# Vervang de app-naam door wat je bij `fly launch` kiest.
-app = "knooppuntroutes-cache"
-primary_region = "ams"
+
+app = 'knooppuntroutes-cache'
+primary_region = 'ams'
 
 [build]
-  dockerfile = "cache-server/Dockerfile"
+  dockerfile = 'cache-server/Dockerfile'
 
 [env]
-  PORT = "8080"
-  CACHE_DIR = "/data"
+  CACHE_DIR = '/data'
+  PORT = '8080'
+
+[[mounts]]
+  source = 'cache'
+  destination = '/data'
 
 [http_service]
   internal_port = 8080
   force_https = true
-  # Niet naar nul schalen: de cache staat op een volume, maar een koude start
-  # kost een halve minuut en dat is precies wat we wilden vermijden.
-  auto_stop_machines = false
+  auto_stop_machines = 'off'
   auto_start_machines = true
   min_machines_running = 1
 
-# Zonder volume is de cache bij elke herstart weg en heeft de server geen nut:
-# het bewaren is zijn hele bestaansreden.
-[[mounts]]
-  source = "cache"
-  destination = "/data"
-
 [[vm]]
-  size = "shared-cpu-1x"
-  memory = "512mb"
+  size = 'shared-cpu-1x'
+  memory = '512mb'

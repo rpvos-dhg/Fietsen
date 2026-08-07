@@ -1,4 +1,5 @@
 import { netwerkQuery, hoogtepuntQuery, OVERPASS_MIRRORS, cellsForBbox } from './shared/cellen.js';
+import { leesHoogtepunten } from './shared/hoogtepunten.js';
 
 /**
  * Waar de gegevens vandaan komen, in deze volgorde:
@@ -164,19 +165,78 @@ function tel(delta) {
   opVoortgang?.({ ...voortgang });
 }
 
+/**
+ * Welke cellen met de site zijn meegeleverd. Zonder deze index zou de app voor
+ * elk gebied dat niet gebakken is een mislukt verzoek per cel doen.
+ */
+let gebakkenIndex = null;
+async function isGebakken(naam) {
+  if (!gebakkenIndex) {
+    gebakkenIndex = fetch(new URL('cellen/index.json', import.meta.url))
+      .then((r) => (r.ok ? r.json() : []))
+      .then((lijst) => new Set(lijst))
+      .catch(() => new Set());
+  }
+  return (await gebakkenIndex).has(naam);
+}
+
+/** Zet ruwe Overpass-elementen om in hetzelfde compacte formaat als de gebakken cellen. */
+function verdicht(soort, elementen) {
+  const rond = (v) => +v.toFixed(6);
+  if (soort === 'net') {
+    const w = [];
+    const n = [];
+    for (const el of elementen) {
+      if (el.type === 'way') {
+        if (!el.geometry || el.geometry.length < 2) continue;
+        const c = [];
+        for (const g of el.geometry) c.push(g ? rond(g.lat) : null, g ? rond(g.lon) : null);
+        w.push([el.id, c]);
+      } else if (el.type === 'node') {
+        const ref = el.tags?.rcn_ref?.trim();
+        if (ref) n.push([el.id, ref, rond(el.lat), rond(el.lon)]);
+      }
+    }
+    return { w, n };
+  }
+  return leesHoogtepunten(elementen).map((p) => [
+    rond(p.lat),
+    rond(p.lon),
+    p.soort,
+    p.score,
+    p.naam,
+  ]);
+}
+
 async function haalCel(soort, cell, prioriteit) {
+  const naam = `${soort}_${cell.y}_${cell.x}`;
   const sleutel = `${soort}/${cell.y}/${cell.x}`;
   const bewaard = await uitDb(sleutel);
-  if (bewaard && Date.now() - bewaard.tijd < HOUDBAAR_MS) return bewaard.elementen;
+  if (bewaard && Date.now() - bewaard.tijd < HOUDBAAR_MS) return bewaard.data;
 
   const bezig = lopend.get(sleutel);
   if (bezig) return bezig;
 
   const taak = (async () => {
+    // Een meegeleverde cel komt van dezelfde host, uit de CDN en gezipt. Die
+    // hoeft niet mee in de voortgangsteller en niet door de Overpass-poort:
+    // die limiet van twee bestaat alleen om Overpass niet te overvragen.
+    try {
+      if (await isGebakken(naam)) {
+        const res = await fetch(new URL(`cellen/${naam}.json`, import.meta.url));
+        if (res.ok) {
+          const data = await res.json();
+          await naarDb(sleutel, { tijd: Date.now(), data });
+          return data;
+        }
+      }
+    } catch {
+      /* niet meegeleverd of offline: hieronder zelf ophalen */
+    }
+
     tel('start');
     try {
-      const query = soort === 'net' ? netwerkQuery(cell) : hoogtepuntQuery(cell);
-      let elementen = null;
+      let data = null;
 
       const server = cacheServer();
       if (server) {
@@ -187,15 +247,18 @@ async function haalCel(soort, cell, prioriteit) {
           // Alleen 200 betekent "hier is de cel". Bij 202 heeft de server hem
           // nog niet en is hij hem aan het ophalen; dan zijn wij sneller door
           // het zelf te doen, en heeft de server hem de volgende keer wel.
-          if (res.status === 200) elementen = (await res.json()).elementen;
+          if (res.status === 200) data = verdicht(soort, (await res.json()).elementen);
         } catch {
           /* server plat of traag: gewoon zelf ophalen */
         }
       }
-      if (!elementen) elementen = await metSlot(() => viaOverpass(query), prioriteit);
+      if (!data) {
+        const query = soort === 'net' ? netwerkQuery(cell) : hoogtepuntQuery(cell);
+        data = verdicht(soort, await metSlot(() => viaOverpass(query), prioriteit));
+      }
 
-      await naarDb(sleutel, { tijd: Date.now(), elementen });
-      return elementen;
+      await naarDb(sleutel, { tijd: Date.now(), data });
+      return data;
     } finally {
       tel('klaar');
       lopend.delete(sleutel);
@@ -208,26 +271,30 @@ async function haalCel(soort, cell, prioriteit) {
 
 /* ---------------- hele gebieden ---------------- */
 
+/** Voegt de cellen samen tot één netwerk; wegen op de celgrens komen dubbel voor. */
 export async function haalNetwerk(bbox) {
-  const cellen = cellsForBbox(bbox);
-  const delen = await Promise.all(cellen.map((c) => haalCel('net', c, 'hoog')));
-  const alles = [];
+  const delen = await Promise.all(cellsForBbox(bbox).map((c) => haalCel('net', c, 'hoog')));
+  const w = [];
+  const n = [];
   const gezien = new Set();
-  for (const elementen of delen) {
-    for (const el of elementen) {
-      const k = `${el.type}/${el.id}`;
-      if (gezien.has(k)) continue;
-      gezien.add(k);
-      alles.push(el);
+  for (const deel of delen) {
+    for (const weg of deel.w) {
+      if (gezien.has(`w${weg[0]}`)) continue;
+      gezien.add(`w${weg[0]}`);
+      w.push(weg);
+    }
+    for (const knoop of deel.n) {
+      if (gezien.has(`n${knoop[0]}`)) continue;
+      gezien.add(`n${knoop[0]}`);
+      n.push(knoop);
     }
   }
-  return alles;
+  return { w, n };
 }
 
 export async function haalHoogtepunten(bbox) {
-  const cellen = cellsForBbox(bbox);
-  const delen = await Promise.all(cellen.map((c) => haalCel('hl', c, 'laag')));
-  return delen.flat();
+  const delen = await Promise.all(cellsForBbox(bbox).map((c) => haalCel('hl', c, 'laag')));
+  return delen.flat().map(([lat, lon, soort, score, naam]) => ({ lat, lon, soort, score, naam }));
 }
 
 /** Hoeveel megabyte er op dit apparaat staat, om te kunnen opruimen. */

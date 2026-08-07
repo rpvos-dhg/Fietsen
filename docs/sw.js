@@ -93,6 +93,25 @@ self.addEventListener('fetch', (e) => {
   // al in IndexedDB bewaard, met een eigen houdbaarheid.
   if (url.origin !== self.location.origin) return;
 
+  /*
+   * Meegeleverde kaartcellen zijn onveranderlijk: ze wijzigen alleen wanneer er
+   * een nieuwe versie van de site wordt gepubliceerd, en dan onder dezelfde
+   * naam met andere inhoud. Cache-first dus, in de tegelcache zodat ze een
+   * versiewissel van de app overleven — opnieuw ophalen kost megabytes.
+   */
+  if (url.pathname.includes('/cellen/') && !url.pathname.endsWith('index.json')) {
+    e.respondWith(
+      caches.open(TEGEL_CACHE).then(async (cache) => {
+        const uitCache = await cache.match(e.request);
+        if (uitCache) return uitCache;
+        const res = await fetch(e.request);
+        if (res.ok) await cache.put(e.request, res.clone());
+        return res;
+      })
+    );
+    return;
+  }
+
   // De app zelf: eerst het net (zodat een nieuwe versie meteen doorkomt), met de
   // cache als vangnet wanneer je offline bent.
   e.respondWith(
