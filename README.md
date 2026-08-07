@@ -40,12 +40,39 @@ De site is de map `docs/`; er is geen buildstap.
 
 Dat is alles. Elke push naar `main` is meteen live.
 
-## De cache-server (optioneel)
+## Een gebied toevoegen
 
-Alles werkt zonder. De cache-server doet één ding: cellen van het knooppunten-
-netwerk en de bezienswaardigheden bij Overpass ophalen en op schijf bewaren,
-zodat al je apparaten daarvan meeprofiteren en het uitvechten met de Overpass-
-mirrors maar één keer hoeft.
+De kaartcellen worden **met de site meegeleverd**. Daardoor is er tijdens het
+fietsen geen Overpass en geen server nodig, en is een gebied in ongeveer een
+seconde geladen in plaats van minuten.
+
+Een nieuw gebied voeg je thuis toe:
+
+```bash
+node scripts/voeg-gebied-toe.js "Schoorl" 25
+```
+
+Dat haalt alleen de ontbrekende cellen op, verdicht ze en werkt de index bij.
+Daarna committen en pushen; vanaf dat moment is het gebied voor al je apparaten
+instant.
+
+Van de ruwe OSM-JSON gebruikt de app alleen de geometrie van de wegen en de
+positie plus het nummer van de knooppunten. Tags, `bounds` en node-id-lijsten
+worden bij het bakken weggegooid: 63,1 MB ruw werd 16,3 MB, en met de gzip van
+GitHub Pages erbij ruim 90% kleiner.
+
+Zit een gebied er niet in, dan valt de app terug op Overpass — traag, maar het
+werkt. Met `scripts/bak-cellen.js` zet je een bestaande ruwe cache in één keer om.
+
+## De cache-server (optioneel, niet meer nodig)
+
+Sinds de cellen met de site meekomen heeft deze server geen functie meer in het
+dagelijks gebruik, en hij kost geld zolang hij draait. Hij staat er nog voor het
+geval je ooit een gedeelde cache wilt die zichzelf bijwerkt zonder push.
+
+Hij doet één ding: cellen bij Overpass ophalen en op schijf bewaren, zodat al je
+apparaten daarvan meeprofiteren en het uitvechten met de Overpass-mirrors maar
+één keer hoeft.
 
 ```bash
 npm start --prefix cache-server
