@@ -72,6 +72,9 @@ Bevestigde functionaliteit:
   zodra hij naar de achtergrond gaat.
 - De kaart kan draaien: met twee vingers zelf, of automatisch mee met de
   rijrichting, zodat linksaf op het scherm ook linksaf op de weg is.
+- Plannen werkt zonder verbinding: de gebiedenlijst zit in de app, de kaartcellen
+  komen met de site mee. Alleen de plaatsnaamzoeker heeft het net nodig, en die
+  valt terug op de volledige lijst.
 
 Technische randvoorwaarden die toekomstig werk moet respecteren:
 
@@ -150,3 +153,10 @@ op antwoordt.
 Geen specifieke standaard vastgelegd. Wel bekend: de app wordt ook op een
 telefoonscherm gebruikt, en meelezers kennen het knooppuntensysteem niet
 noodzakelijk.
+
+Wat wél vastligt, omdat het uit tests met bedachte gebruikers naar voren kwam:
+de volgmodus moet met het toetsenbord te bedienen zijn (de kaartmarkeringen zijn
+opschrift en horen niet in de tabvolgorde), de volgbalk is een live-gebied zodat
+het volgende knooppunt wordt voorgelezen, en knoppen die uit losse tekstblokken
+zijn opgebouwd krijgen een eigen `aria-label` — anders plakt een schermlezer die
+blokken aan elkaar tot onzin.

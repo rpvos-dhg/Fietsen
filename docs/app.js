@@ -473,6 +473,9 @@ function bewaarSessie() {
     centreert: state.centreert,
     kaartModus: state.kaartModus,
     kaartHoek: state.kaartHoek,
+    laatstePositie: state.laatstePositie,
+    startgebied: state.startgebied,
+    anker: state.anchor,
     midden: [midden.lat, midden.lng],
     zoom: map.getZoom(),
     route: alsPlatteRoute(state.huidigeRoute),
@@ -507,6 +510,18 @@ function herstelSessie() {
   herstelBezig = true;
   try {
     state.gekozenId = s.route.id;
+    // Zonder dit is onderweg een nieuw rondje maken onmogelijk: het gekozen
+    // gebied is dan weg en opnieuw zoeken vraagt een verbinding die je net niet
+    // hebt.
+    if (s.startgebied) {
+      state.startgebied = s.startgebied;
+      $('gekozenGebied').textContent = `Start: ${s.startgebied.naam} (bij ${s.startgebied.bij}).`;
+    }
+    if (s.anker) {
+      state.anchor = s.anker;
+      $('gebiedActief').textContent = s.anker.naam;
+    }
+    if (s.laatstePositie) state.laatstePositie = s.laatstePositie;
     toonRoute(alsRoute(s.route));
     if (s.volgmodus) {
       startVolgen();
@@ -525,9 +540,13 @@ function herstelSessie() {
         // Had je de kaart zelf weggeschoven, dan blijft dat zo, inclusief de
         // knop om weer op jezelf te centreren.
         state.centreert = s.centreert !== false;
-        $('volgCentreer').classList.toggle('hidden', state.centreert);
+        toonKaartknop('volgCentreer', !state.centreert);
       }
-      $('volgDetail').textContent = 'Rit hervat na herstart van de app.';
+      // Met de laatste positie van vóór de onderbreking staat het volgende
+      // knooppunt er meteen; anders is het wachten op de eerste nieuwe fix.
+      if (!(s.laatstePositie && toonVoortgangUitPositie(s.laatstePositie.lat, s.laatstePositie.lon))) {
+        $('volgDetail').textContent = 'Rit hervat na herstart van de app.';
+      }
     } else {
       status('De laatste route staat er weer.');
       setTimeout(() => status(''), 4000);
@@ -568,6 +587,7 @@ function parseReeks(tekst) {
 }
 
 async function plan() {
+  status('');
   const numbers = parseReeks($('reeks').value);
   if (numbers.length < 2) {
     status('Geef minstens twee knooppunten op, bijvoorbeeld 83 - 84 - 85.', 'fout');
@@ -631,6 +651,10 @@ function toonRoute(route) {
         iconAnchor: [14, 14],
       }),
       zIndexOffset: 500,
+      // Deze markers zijn opschrift, geen bediening: zonder dit staan er op een
+      // route van twintig knooppunten twintig tabstops tussen jou en de
+      // volgbalk, en is die met het toetsenbord onbereikbaar.
+      keyboard: false,
     })
       .bindTooltip(`${i + 1}. knooppunt ${k.ref}`, { direction: 'top' })
       .addTo(state.markerLaag);
@@ -694,6 +718,9 @@ const TABS = [
 ];
 
 function kiesTab(naam) {
+  // Een melding hoort bij de handeling die hem opriep. Bleef hij staan, dan las
+  // je in het ene tabblad een rode fout over het andere.
+  status('');
   for (const t of TABS) {
     const actief = t.knop === naam;
     const knop = $(t.knop);
@@ -725,14 +752,31 @@ $('rijtijd').addEventListener('input', (e) => {
 });
 
 async function zoekGebieden() {
+  status('');
   const vanaf = $('vanaf').value.trim();
   const minuten = Number($('rijtijd').value);
   const lijst = $('gebiedenLijst');
   lijst.innerHTML = '<p class="hint">zoeken…</p>';
-  try {
-    const vertrek = vanaf ? (await geocode(vanaf, 1))[0] : null;
-    if (vanaf && !vertrek) throw new Error(`Kon "${vanaf}" niet vinden.`);
+  /*
+   * De plaatsnaamzoeker is het enige onderdeel hier dat een verbinding nodig
+   * heeft. De gebieden staan in de app zelf en de kaartcellen komen met de site
+   * mee, dus zonder bereik kun je nog steeds een gebied kiezen en een rondje
+   * laten maken — als de zoekfout je tenminste niet de weg verspert.
+   */
+  let melding = '';
+  let vertrek = null;
+  if (vanaf) {
+    try {
+      vertrek = (await geocode(vanaf, 1))[0] || null;
+      if (!vertrek) melding = `Kon "${vanaf}" niet vinden. Hieronder staan alle gebieden.`;
+    } catch {
+      melding =
+        'Geen verbinding met de plaatsnaamzoeker, dus geen rijtijden. ' +
+        'Hieronder staan alle gebieden; een rondje maken werkt ook zonder bereik.';
+    }
+  }
 
+  try {
     const gebieden = STARTGEBIEDEN.map((g) => {
       if (!vertrek) return { ...g, km: null, minuten: null };
       const km = haversine(vertrek.lat, vertrek.lon, g.lat, g.lon) / 1000;
@@ -746,6 +790,12 @@ async function zoekGebieden() {
       return;
     }
     lijst.innerHTML = '';
+    if (melding) {
+      const p = document.createElement('p');
+      p.className = 'hint';
+      p.textContent = melding;
+      lijst.appendChild(p);
+    }
     // Niet iedereen wil de fiets in de auto laden: vanaf het vertrekpunt zelf
     // vertrekken hoort gewoon een van de opties te zijn.
     const opties = vertrek
@@ -770,6 +820,9 @@ async function zoekGebieden() {
         `<span class="kop"><span class="naam vink">${g.naam}</span>` +
         (rij ? `<span class="rij">${rij}</span>` : '') +
         `</span><span class="waarom">${g.waarom}</span>`;
+      // Zonder eigen naam plakt een schermlezer de losse spans aan elkaar:
+      // "Vanaf hier, zonder autogeen autoritRondje dat begint bij…".
+      b.setAttribute('aria-label', `${g.naam}${rij ? `, ${rij}` : ''}. ${g.waarom}`);
       b.setAttribute('aria-pressed', 'false');
       b.addEventListener('click', () => {
         [...lijst.children].forEach((c) => {
@@ -802,6 +855,7 @@ $('vanaf').addEventListener('keydown', (e) => {
 });
 
 async function genereer() {
+  status('');
   if (!state.startgebied) {
     status('Kies eerst een gebied uit de lijst.', 'fout');
     return;
@@ -1050,8 +1104,13 @@ function startVolgen() {
   map.invalidateSize();
   naarUitsnede(state.routeLijn.getBounds());
   $('volgTitel').textContent = km(route.meters);
-  $('volgDetail').textContent = `${route.knooppunten.length} knooppunten · ${route.reeks || ''}`;
+  $('volgDetail').textContent = navigator.wakeLock
+    ? `${route.knooppunten.length} knooppunten · ${route.reeks || ''}`
+    : `${route.knooppunten.length} knooppunten · deze browser houdt het scherm niet wakker`;
   vraagSchermWakker();
+  // Het paneel waar de focus stond is nu display:none; zonder deze sprong valt
+  // de focus terug op de pagina en begint het tabben weer bovenaan de kaart.
+  $('volgbalk').focus({ preventScroll: true });
   bewaarSessie();
 }
 
@@ -1065,6 +1124,7 @@ function stopVolgen() {
   // scheve kaart naast een paneel met tekst leest niet.
   kiesDraaistand('noord');
   map.invalidateSize();
+  $('volg').focus({ preventScroll: true });
   bewaarSessie();
 }
 
@@ -1086,8 +1146,8 @@ function stopPositie() {
   state.positieLaag?.clearLayers();
   state.vorigeFix = null;
   $('volgPositie').setAttribute('aria-pressed', 'false');
-  $('volgPositie').textContent = 'Toon mijn positie';
-  $('volgCentreer').classList.add('hidden');
+  $('volgPositie').setAttribute('aria-label', 'Toon mijn positie op de kaart');
+  toonKaartknop('volgCentreer', false);
   $('volgbalk').classList.remove('geen-signaal');
   bewaarSessie();
 }
@@ -1113,7 +1173,7 @@ function startPositie() {
   if (!state.positieLaag) state.positieLaag = L.layerGroup().addTo(map);
   state.centreert = true;
   $('volgPositie').setAttribute('aria-pressed', 'true');
-  $('volgPositie').textContent = 'Positie uit';
+  $('volgPositie').setAttribute('aria-label', 'Mijn positie staat aan; tik om hem uit te zetten');
 
   beginWatch();
   clearInterval(state.signaalTimer);
@@ -1167,6 +1227,7 @@ function werkPositieBij(pos) {
   const { latitude: lat, longitude: lon, accuracy } = pos.coords;
   const volg = state.volg;
   state.laatsteFix = Date.now();
+  state.laatstePositie = { lat, lon };
   $('volgbalk').classList.remove('geen-signaal');
   state.positieLaag.clearLayers();
   L.circle([lat, lon], {
@@ -1202,12 +1263,46 @@ function werkPositieBij(pos) {
   const volgende =
     volgendeIdx === -1 ? state.huidigeRoute.knooppunten[0] : state.huidigeRoute.knooppunten[volgendeIdx];
 
-  $('volgTitel').textContent = `Volgende: knooppunt ${volgende.ref}`;
+  toonVoortgang(volgende.ref, resterend, afstand);
+}
+
+/*
+ * Wat er onderweg in de balk staat. Ver van de route klopt de projectie op de
+ * lijn niet meer — het dichtstbijzijnde punt kan dan overal liggen — en dan is
+ * "nog zoveel km" een getal met een stelligheid die het niet waarmaakt. Boven
+ * die grens vertelt de balk alleen nog hoe ver je ernaast zit.
+ */
+const VER_VAN_ROUTE_M = 250;
+
+function toonVoortgang(ref, resterend, afstand) {
+  // Ver van de route is het dichtstbijzijnde knooppunt het enige zinnige dat de
+  // app nog kan zeggen; op een smal scherm moet die regel kort genoeg blijven om
+  // niet afgekapt te worden, dus het nummer gaat naar de titel.
+  const ver = afstand > VER_VAN_ROUTE_M;
+  $('volgTitel').textContent = ver ? `Dichtstbij: knooppunt ${ref}` : `Volgende: knooppunt ${ref}`;
   // Boven de 60 m ben je van de route af; dat is precies wat je wilt weten als
   // je een afslag mist, en het is het enige wat deze modus je vertelt.
-  $('volgDetail').textContent =
-    `nog ${km(resterend)}` + (afstand > 60 ? ` · ${Math.round(afstand)} m van de route` : '');
+  $('volgDetail').textContent = ver
+    ? `${Math.round(afstand)} m van de route`
+    : `nog ${km(resterend)}` + (afstand > 60 ? ` · ${Math.round(afstand)} m ernaast` : '');
   $('volgbalk').classList.toggle('naast-route', afstand > 60);
+}
+
+/**
+ * Na een herstart is er nog geen nieuwe gps-fix, maar de laatste van vóór de
+ * onderbreking staat in de sessie. Daarmee staat het eerstvolgende knooppunt er
+ * meteen, in plaats van de lengte van de hele route tot de eerste fix binnen is.
+ */
+function toonVoortgangUitPositie(lat, lon) {
+  const volg = state.volg;
+  if (!volg) return false;
+  const { index, afstand } = dichtstbijzijndePunt(volg, lat, lon, null);
+  state.laatsteIndex = index;
+  const volgendeIdx = volg.kpIndex.findIndex((i) => i > index);
+  const volgende =
+    volgendeIdx === -1 ? state.huidigeRoute.knooppunten[0] : state.huidigeRoute.knooppunten[volgendeIdx];
+  toonVoortgang(volgende.ref, Math.max(0, volg.totaal - volg.cum[index]), afstand);
+  return true;
 }
 
 /* --- scherm aan houden tijdens het fietsen --- */
@@ -1305,6 +1400,51 @@ L.Draggable.prototype._updatePosition = function () {
   origVerplaats.call(this);
 };
 
+/*
+ * De draaiknop en "Centreer" horen bij de kaart, niet bij de balk. In de balk
+ * duwden ze de tekst naar een tweede regel en aten ze op een klein scherm ruim
+ * een kwart van het beeld op — precies wat de volgmodus niet moet doen. Als
+ * kaartknop staan ze bovendien binnen de laag die tegendraait, dus ze blijven
+ * rechtop staan als de kaart scheef staat.
+ */
+function kaartknop(id, tekst, opKlik) {
+  const bak = L.DomUtil.create('div', 'leaflet-bar kaartknoppen');
+  const knop = L.DomUtil.create('button', 'kaartknop', bak);
+  knop.id = id;
+  knop.type = 'button';
+  knop.textContent = tekst;
+  L.DomEvent.disableClickPropagation(bak).on(knop, 'click', L.DomEvent.stop).on(knop, 'click', opKlik);
+  return bak;
+}
+
+const DraaiControl = L.Control.extend({
+  options: { position: 'topright' },
+  onAdd() {
+    const bak = kaartknop('volgDraai', 'Noord boven', () => volgendeDraaistand());
+    // Tijdens het plannen staat de kaart op het noorden en heeft de knop geen
+    // functie; hij verschijnt zodra je gaat volgen of de kaart zelf draait.
+    bak.classList.add('alleen-onderweg');
+    return bak;
+  },
+});
+const CentreerControl = L.Control.extend({
+  options: { position: 'topright' },
+  onAdd: () =>
+    kaartknop('volgCentreer', 'Centreer', () => {
+      state.centreert = true;
+      toonKaartknop('volgCentreer', false);
+      bewaarSessie();
+    }),
+});
+map.addControl(new DraaiControl());
+map.addControl(new CentreerControl());
+
+/** Toont of verbergt een kaartknop mét zijn kadertje; los verbergen laat een leeg vakje staan. */
+function toonKaartknop(id, zichtbaar) {
+  $(id).parentElement.classList.toggle('hidden', !zichtbaar);
+}
+toonKaartknop('volgCentreer', false);
+
 const kaartvak = $('kaartvak');
 
 /** De kaart moet zo groot zijn als de diagonaal van zijn venster; zie style.css. */
@@ -1374,11 +1514,11 @@ function kiesDraaistand(modus) {
   bewaarSessie();
 }
 
-$('volgDraai').addEventListener('click', () => {
-  // Vanuit vrij gedraaid eerst terug naar het noorden: dat is het herkenbare
-  // ijkpunt, en van daaruit is meedraaien één tik verder.
+// Vanuit vrij gedraaid eerst terug naar het noorden: dat is het herkenbare
+// ijkpunt, en van daaruit is meedraaien één tik verder.
+function volgendeDraaistand() {
   kiesDraaistand(state.kaartModus === 'noord' ? 'koers' : 'noord');
-});
+}
 
 /*
  * Draaien met twee vingers, tegelijk met knijpzoomen — daar heeft Leaflet geen
@@ -1474,17 +1614,12 @@ werkDraaiknopBij();
 map.on('dragstart', () => {
   if (state.volgId != null) {
     state.centreert = false;
-    $('volgCentreer').classList.remove('hidden');
+    toonKaartknop('volgCentreer', true);
   }
 });
 
 $('volg').addEventListener('click', startVolgen);
 $('volgStop').addEventListener('click', stopVolgen);
-$('volgCentreer').addEventListener('click', () => {
-  state.centreert = true;
-  $('volgCentreer').classList.add('hidden');
-  bewaarSessie();
-});
 $('volgPositie').addEventListener('click', () => {
   if (state.volgId != null) stopPositie();
   else startPositie();

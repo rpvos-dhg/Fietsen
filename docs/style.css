@@ -627,16 +627,36 @@ body.volgmodus .leaflet-right { padding-right: env(safe-area-inset-right); }
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-/* Vier knoppen passen op een telefoon niet naast een leesbare regel tekst; dan
-   mag de balk een tweede rij pakken. Op een breder scherm blijft het één rij. */
-.volgbalk { flex-wrap: wrap; }
-.volginfo { flex: 1 1 150px; }
-.volgknoppen { display: flex; gap: 8px; flex: 0 1 auto; flex-wrap: wrap; justify-content: flex-end; }
+/* De balk blijft één rij: alles wat bij de kaart hoort (draaien, centreren)
+   staat als kaartknop op de kaart, zodat hier alleen de rit-informatie en twee
+   knoppen overblijven. Elke regel die de balk erbij pakt, gaat van de kaart af. */
+.volginfo { flex: 1 1 120px; }
+.volgknoppen { display: flex; gap: 8px; flex: 0 0 auto; }
 .volgknoppen button[aria-pressed="true"] {
   background: var(--actie-vlak);
   border-color: var(--actie);
   color: var(--actie-tekst);
 }
+
+/* Knoppen die bij de kaart horen in plaats van bij de balk. Ze staan in
+   Leaflets eigen hoek, dus ze erven de veilige zones en draaien mee tegen als
+   de kaart scheef staat. */
+.kaartknoppen { border-radius: 8px; overflow: hidden; }
+.kaartknop {
+  display: block;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 0;
+  background: var(--vlak);
+  color: var(--inkt);
+  font: 600 13px/1 ui-sans-serif, system-ui, sans-serif;
+  cursor: pointer;
+}
+.kaartknop:hover { background: var(--actie-vlak); }
+.kaartknop[aria-pressed="true"] { background: var(--actie-vlak); color: var(--actie-tekst); }
+.kaartknoppen.alleen-onderweg { display: none; }
+body.volgmodus .kaartknoppen.alleen-onderweg,
+body.gedraaid .kaartknoppen.alleen-onderweg { display: block; }
 
 /* Eigen positie: een gevulde stip in de actiekleur, duidelijk anders dan de
  * ronde knooppuntmarkers zodat je ze onderweg niet verwart. */

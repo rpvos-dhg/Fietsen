@@ -29,8 +29,9 @@ Wat er dan lokaal blijft staan:
 - **opgehaalde gebieden** in IndexedDB, dertig dagen houdbaar;
 - **kaarttegels van gebieden die je bekeken hebt**, via de service worker. Val je
   onderweg zonder bereik, dan blijft de kaart zichtbaar waar je al geweest bent.
-- **de rit die je nu volgt**, zodat de volgmodus terugkomt als het systeem de
-  pagina tussendoor heeft weggegooid.
+- **de rit die je nu volgt** plus het gekozen fietsgebied, zodat de volgmodus
+  terugkomt als het systeem de pagina tussendoor heeft weggegooid — en je
+  onderweg meteen een korter rondje kunt laten maken zonder eerst te zoeken.
 
 Openen met slecht bereik wacht hooguit tweeënhalve seconde op het net; daarna
 komt de app uit de cache en wordt de nieuwe versie op de achtergrond opgehaald.
@@ -148,13 +149,28 @@ tientallen "bezienswaardigheden".
 **Bewaar op dit apparaat** zet de hele route inclusief geometrie in de browser.
 De GPX wordt ook in de browser gemaakt, dus downloaden werkt offline.
 
+**Een rondje maken werkt ook zonder bereik.** De gebiedenlijst zit in de app zelf
+en de kaartcellen komen met de site mee; alleen de plaatsnaamzoeker heeft het net
+nodig. Lukt die niet, dan verschijnt de volledige gebiedenlijst met de melding
+erbij, in plaats van een foutmelding die je de weg verspert. Het gekozen gebied
+blijft ook na een herstart staan, zodat je onderweg meteen een korter rondje kunt
+laten maken.
+
 **Volg op de kaart** zet het paneel weg, maakt de kaart schermvullend en toont
 onderaan een balk binnen duimbereik. Er is geen turn-by-turn navigatie: je volgt
 de lijn en de nummers, zoals je de bordjes zou volgen.
 
-**Toon mijn positie** is een aparte knop en staat standaard uit. Aan: een stip
-met nauwkeurigheidscirkel, het eerstvolgende knooppunt, de resterende afstand en
-— als je meer dan 60 meter van de lijn zit — hoe ver je ernaast bent.
+**Positie** is een aparte knop en staat standaard uit. Aan: een stip met
+nauwkeurigheidscirkel, het eerstvolgende knooppunt, de resterende afstand en — als
+je meer dan 60 meter van de lijn zit — hoe ver je ernaast bent. Zit je verder dan
+250 meter van de route, dan vervalt de resterende afstand: het dichtstbijzijnde
+punt op de lijn ligt dan overal en nergens, en een getal zou meer zekerheid
+suggereren dan er is. Je leest dan alleen nog hoe ver je ernaast zit en welk
+knooppunt het dichtstbij is.
+
+Alles wat bij de kaart hoort — draaien, centreren — staat als knop óp de kaart, en
+niet in de balk. Die balk blijft daardoor één regel hoog; elke regel die hij erbij
+pakt, gaat van de kaart af.
 
 Valt het gps-signaal weg — een tunnel, een dichte bosrand, de telefoon net uit je
 zak — dan blijft de positieweergave gewoon aan staan. De balk meldt hoe lang het
@@ -163,9 +179,10 @@ toestemming zet hem uit.
 
 **De kaart kan draaien.** Met twee vingers draai je hem zelf, net als knijpen om
 te zoomen — de eerste tien graden zijn drempel, zodat een gewone knijpbeweging de
-kaart niet ongevraagd scheefzet. De knop in de balk wisselt tussen *Noord boven*
-en *Rijrichting*: in die laatste stand draait de kaart mee met de richting waarin
-je fietst, zodat wat op het scherm rechtsaf gaat ook in het echt rechtsaf gaat.
+kaart niet ongevraagd scheefzet. De knop rechtsboven op de kaart wisselt tussen
+*Noord boven* en *Rijrichting*: in die laatste stand draait de kaart mee met de
+richting waarin je fietst, zodat wat op het scherm rechtsaf gaat ook in het echt
+rechtsaf gaat.
 Sta je stil, dan blijft de kaart staan; de koers van een stilstaande gps is
 ruis. Bij het sluiten van de volgmodus springt de kaart terug op het noorden.
 

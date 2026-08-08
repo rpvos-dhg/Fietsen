@@ -23,6 +23,9 @@
       <h1>Knooppuntroutes</h1>
       <p class="sub">Zeg hoeveel kilometer je wilt fietsen, krijg een rondje over
         echte fietspaden langs wat de moeite waard is.</p>
+      <p class="sub">Knooppunten zijn de genummerde bordjes langs het fietspad.
+        Een route is niets anders dan een rij van die nummers, en onderweg fiets
+        je van nummer naar nummer.</p>
     </header>
 
     <div class="tabs" role="tablist" aria-label="Manier van routeplannen">
@@ -149,15 +152,18 @@
        geen leegte ontstaat. -->
   <main id="kaartvak"><div id="kaart"></div></main>
 
-  <div id="volgbalk" class="volgbalk hidden" role="region" aria-label="Route volgen">
+  <!-- tabindex=-1: bij het openen van de volgmodus springt de focus hierheen,
+       zodat een toetsenbordgebruiker niet eerst door de hele kaart hoeft.
+       aria-live: onderweg verandert alleen deze tekst, en die verandering is
+       precies wat voorgelezen moet worden. -->
+  <div id="volgbalk" class="volgbalk hidden" role="region" aria-label="Route volgen"
+       tabindex="-1" aria-live="polite">
     <div class="volginfo">
       <strong id="volgTitel">—</strong>
       <span id="volgDetail"></span>
     </div>
     <div class="volgknoppen">
-      <button id="volgDraai" class="ghost small">Noord boven</button>
-      <button id="volgCentreer" class="ghost small hidden">Centreer</button>
-      <button id="volgPositie" class="ghost small" aria-pressed="false">Toon mijn positie</button>
+      <button id="volgPositie" class="ghost small" aria-pressed="false">Positie</button>
       <button id="volgStop" class="ghost small">Sluit</button>
     </div>
   </div>
