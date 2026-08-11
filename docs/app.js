@@ -1,7 +1,7 @@
 /* global L */
 
 import { STARTGEBIEDEN, rijtijdMinuten } from './shared/startgebieden.js';
-import { PDOK } from './shared/cellen.js';
+import { PDOK, cellsForBbox } from './shared/cellen.js';
 import { haversine } from './shared/graph.js';
 import { toGpx } from './shared/gpx.js';
 
@@ -751,6 +751,41 @@ $('rijtijd').addEventListener('input', (e) => {
   $('rijtijdLabel').textContent = `${e.target.value} min`;
 });
 
+/*
+ * Welke gebieden met de site zijn meegeleverd. Voor die gebieden is het
+ * knooppuntennetwerk er in een seconde; voor de rest moet het bij Overpass
+ * vandaan komen en duurt de eerste keer minuten. Dat verschil hoort in de lijst
+ * te staan en niet pas te blijken als je op "Maak rondjes" hebt gedrukt.
+ */
+let meegeleverd = null;
+function meegeleverdeCellen() {
+  if (!meegeleverd) {
+    meegeleverd = fetch(new URL('cellen/index.json', import.meta.url))
+      .then((r) => (r.ok ? r.json() : []))
+      .then((lijst) => new Set(lijst))
+      .catch(() => new Set());
+  }
+  return meegeleverd;
+}
+
+/** Dezelfde uitsnede als de worker gebruikt om te genereren; anders klopt het oordeel niet. */
+function cellenVoorGebied(g, km) {
+  const straal = Math.max(12, km / 3);
+  const dLat = straal / 111.32;
+  const dLon = straal / (111.32 * Math.cos((g.lat * Math.PI) / 180));
+  return cellsForBbox({
+    south: g.lat - dLat,
+    west: g.lon - dLon,
+    north: g.lat + dLat,
+    east: g.lon + dLon,
+  });
+}
+
+async function isMeegeleverd(g, km) {
+  const set = await meegeleverdeCellen();
+  return cellenVoorGebied(g, km).every((c) => set.has(`net_${c.y}_${c.x}`));
+}
+
 async function zoekGebieden() {
   status('');
   const vanaf = $('vanaf').value.trim();
@@ -812,17 +847,31 @@ async function zoekGebieden() {
           ...gebieden,
         ]
       : gebieden;
+    const km = Number($('afstandWens').value) || 40;
     for (const g of opties) {
       const b = document.createElement('button');
       b.className = 'gebied';
       const rij = g.minuten ? `${g.minuten} min · ${g.km} km` : g.minuten === 0 ? 'geen autorit' : '';
+      // Een eiland bereik je niet met de auto alleen; de geschatte rijtijd gaat
+      // tot de kade en zegt niets over de overtocht.
+      const extra = g.veerboot ? ` · veerboot vanaf ${g.veerboot}` : '';
       b.innerHTML =
         `<span class="kop"><span class="naam vink">${g.naam}</span>` +
-        (rij ? `<span class="rij">${rij}</span>` : '') +
+        (rij || extra ? `<span class="rij">${rij}${extra}</span>` : '') +
         `</span><span class="waarom">${g.waarom}</span>`;
       // Zonder eigen naam plakt een schermlezer de losse spans aan elkaar:
       // "Vanaf hier, zonder autogeen autoritRondje dat begint bij…".
-      b.setAttribute('aria-label', `${g.naam}${rij ? `, ${rij}` : ''}. ${g.waarom}`);
+      b.setAttribute('aria-label', `${g.naam}${rij ? `, ${rij}` : ''}${extra}. ${g.waarom}`);
+      // De uitkomst komt uit een bestand dat nog geladen kan worden; de knop
+      // staat er al, de melding komt er zo nodig achteraan bij.
+      isMeegeleverd(g, km).then((klaar) => {
+        if (klaar) return;
+        const wacht = document.createElement('span');
+        wacht.className = 'wachttijd';
+        wacht.textContent = 'Nog niet meegeleverd: de eerste keer duurt dit gebied enkele minuten.';
+        b.appendChild(wacht);
+        b.setAttribute('aria-label', `${b.getAttribute('aria-label')} ${wacht.textContent}`);
+      });
       b.setAttribute('aria-pressed', 'false');
       b.addEventListener('click', () => {
         [...lijst.children].forEach((c) => {

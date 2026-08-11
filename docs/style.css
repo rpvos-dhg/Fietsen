@@ -391,6 +391,16 @@ button.small { padding: 6px 11px; font-size: 13px; }
   font-variant-numeric: tabular-nums;
 }
 .gebied .waarom { color: var(--inkt-zacht); font-size: 12.5px; display: block; margin-top: 2px; }
+/* Een gebied waarvan de kaartcellen niet meegeleverd zijn, kost de eerste keer
+   minuten. Dat is geen fout, dus geen rood — maar het hoort wel vooraf te staan
+   en niet pas als je zit te wachten. */
+.gebied .wachttijd {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--waarschuwing);
+}
+.gebied .rij { white-space: normal; }
 
 /* --- voorgestelde rondjes --- */
 

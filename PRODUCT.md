@@ -63,6 +63,10 @@ Bevestigde functionaliteit:
 - Rondjes genereren van een gevraagde lengte vanaf een gekozen startgebied,
   gescoord op bezienswaardigheden binnen 400 m van de route.
 - Fietsgebieden voorstellen op geschatte rijtijd vanaf een postcode of plaats.
+  De lijst is met de hand samengesteld en dekt Nederland plus enkele gebieden net
+  over de Belgische grens. Bij elk gebied staat of de kaartcellen meegeleverd zijn
+  of dat het de eerste keer bij Overpass vandaan moet komen, en of er een veerboot
+  bij hoort — de geschatte rijtijd gaat namelijk tot de kade.
 - Een zelf ingevoerde knooppuntreeks omzetten in een route, met waarschuwing bij
   etappes die op een verkeerde regio wijzen.
 - GPX-export met spoor en knooppunt-waypoints.
@@ -87,6 +91,10 @@ Technische randvoorwaarden die toekomstig werk moet respecteren:
   gecachet.
 - Knooppuntnummers zijn alleen binnen een regio uniek. Elke opzoeking heeft een
   geografisch ankerpunt nodig.
+- Een bestemming hoort alleen in de gebiedenlijst als er een knooppuntennetwerk
+  ligt waar een rondje overheen kan. Een losse bezienswaardigheid, een eiland
+  zonder netwerk of een gebied waar niet gefietst mag worden hoort er niet in,
+  hoe mooi het ook is.
 - Regionale Overpass-mirrors met een deelbestand van de wereld antwoorden met
   HTTP 200 en nul elementen buiten hun gebied; alleen wereldwijde mirrors zijn
   bruikbaar.

@@ -62,6 +62,22 @@ Dat haalt alleen de ontbrekende cellen op, verdicht ze en werkt de index bij.
 Daarna committen en pushen; vanaf dat moment is het gebied voor al je apparaten
 instant.
 
+**Niet elk gebied in de lijst is al gebakken.** Van de fietsgebieden staan de
+cellen van het westen en midden van het land klaar; voor de rest — Drenthe,
+Groningen, Twente, Zuid-Limburg, de eilanden en alles over de grens — komt het
+netwerk de eerste keer bij Overpass vandaan en duurt dat minuten. De app zegt dat
+er in de lijst bij ("Nog niet meegeleverd"), zodat je niet voor de verrassing
+staat als je op vertrekken staat. Bakken doe je thuis, per gebied:
+
+```bash
+node scripts/voeg-gebied-toe.js "Bourtange" 25
+node scripts/voeg-gebied-toe.js 50.9631,5.3927 25   # Bokrijk, over de grens
+```
+
+Elk gebied kost een handvol cellen; alles in één keer bakken is bewust niet
+gedaan, want dat zou de site met honderden megabytes opblazen voor gebieden waar
+je misschien nooit heen gaat.
+
 Van de ruwe OSM-JSON gebruikt de app alleen de geometrie van de wegen en de
 positie plus het nummer van de knooppunten. Tags, `bounds` en node-id-lijsten
 worden bij het bakken weggegooid: 63,1 MB ruw werd 16,3 MB, en met de gzip van
